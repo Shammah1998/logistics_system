@@ -2,6 +2,8 @@
 
 Complete logistics platform similar to Sendy (Kenya) with Customer Panel, Admin Panel, and Driver App.
 
+Test system of an anticipated logistics system.
+
 ## Tech Stack
 
 - **Backend**: Express.js, Node.js, Supabase
@@ -191,4 +193,3 @@ See **[ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)** for complete setup instruct
 ## License
 
 ISC
-
