@@ -1,0 +1,96 @@
+MOBILE APP LAYOUT REFERENCE
+============================
+
+This folder contains reference images showing the design patterns and layout structure
+for the mobile application interface.
+
+LAYOUT TYPES:
+-------------
+1. Login Screen - Form-based authentication
+2. Map-Based Destination Selection - Map with bottom sheet
+3. Map View - Full-screen map with navigation
+4. Orders List - Completed orders with summary
+5. Orders List - Ongoing and completed categories
+6. Ongoing Order Detail - Step-by-step progress view
+7. Map with Pickup/Action - Map with contextual action sheet
+8. Document Upload - Single-purpose upload screen
+9. Payments/Earnings - Balance overview with navigation
+10. Account Statement - Transaction list
+11. Payment Detail - Single transaction view
+12. Profile/More - User profile and settings
+
+KEY DESIGN PATTERNS:
+--------------------
+- Full-screen map views for location-based screens
+- Bottom sheet overlays for contextual actions
+- List-based navigation and content display
+- Card-based information grouping
+- Persistent bottom navigation bar
+- Status badges with color coding
+- Step-by-step progress tracking
+- Transaction lists with color-coded indicators
+
+UI COMPONENTS:
+--------------
+- Header with back arrow and title
+- Bottom navigation bar (4 tabs)
+- Status bar (system)
+- Input fields (rounded, with labels)
+- Primary buttons (dark blue, full-width)
+- Secondary buttons (bordered, white)
+- Status badges (pill-shaped, color-coded)
+- Cards (white, rounded corners)
+- List items (icon, content, action)
+- Map markers (location pins)
+- Bottom sheets (overlay panels)
+- Progress bars (horizontal)
+- Step indicators (colored circles)
+- Transaction icons (triangles in circles)
+
+LAYOUT STRUCTURE:
+-----------------
+Header (top)
+  - Back Arrow | Title | Optional Badge
+
+Status Bar (above header)
+  - Time | System Icons
+
+Main Content
+  - Option A: Full-screen map
+  - Option B: List view (scrollable)
+  - Option C: Form/centered content
+  - Option D: Card-based layout
+
+Bottom Sheet (overlay, optional)
+  - Contextual information
+  - Action buttons
+
+Bottom Navigation (fixed)
+  - Home | Orders | Earnings | More
+
+DESIGN PRINCIPLES:
+------------------
+- Mobile-first, touch-optimized
+- Clear visual hierarchy
+- Color-coded status indicators
+- Contextual actions
+- Persistent navigation
+- Full-screen utilization
+- Card-based grouping
+- Progressive disclosure
+
+COLOR SCHEME:
+-------------
+- Primary: Dark blue/navy (headers, buttons, active states)
+- Background: White (content), Light grey (cards)
+- Status: Green (delivered/credit), Orange (pending), Red (rejected/debit)
+- Text: Dark (primary), Grey (secondary)
+
+NAVIGATION PATTERNS:
+-------------------
+- Bottom navigation (4 main sections)
+- Back arrow in headers
+- List item navigation (tap to detail)
+- Stack-based navigation flow
+- Contextual actions in bottom sheets
+

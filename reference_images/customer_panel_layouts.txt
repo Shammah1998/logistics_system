@@ -1,0 +1,56 @@
+CUSTOMER PANEL LAYOUT REFERENCE
+================================
+
+This folder contains reference images showing the design patterns and layout structure
+for the customer panel interface.
+
+LAYOUT TYPES:
+-------------
+1. Orders/Transactions List - Table view with expandable rows
+2. Order Tracking - Split view with details and map
+3. Place Order - Form on left, map on right
+4. Location Search - Search interface with map
+
+KEY DESIGN PATTERNS:
+--------------------
+- Split-screen layouts (controls left, map right)
+- Expandable data rows
+- Tabbed navigation for related content
+- Button groups for selection
+- Timeline components for order events
+- Interactive maps with markers and routes
+- Dropdown menus for navigation
+- Status indicators with color coding
+
+UI COMPONENTS:
+--------------
+- Header with logo, contact info, user menu
+- Breadcrumb navigation
+- Data tables with sorting
+- Form inputs with autocomplete
+- Vehicle/option selection lists
+- Map integration with controls
+- Timeline/activity feed
+- Information cards
+- Action buttons
+
+LAYOUT STRUCTURE:
+-----------------
+Header (full width)
+  - Logo | Contact Info | User Menu
+
+Navigation
+  - Breadcrumbs
+
+Main Content
+  - Option A: Full-width table/list
+  - Option B: Split-screen (form/details left, map right)
+
+DESIGN PRINCIPLES:
+------------------
+- Clear visual hierarchy
+- Progressive disclosure (summary → details)
+- Grouped related information
+- Prominent primary actions
+- Visual feedback for interactions
+- Responsive to screen size

@@ -1,0 +1,63 @@
+ADMIN PANEL LAYOUT REFERENCE
+=============================
+
+This folder contains reference images showing the design patterns and layout structure
+for the admin panel interface.
+
+LAYOUT TYPES:
+-------------
+1. Partner/Driver Management - List with detail panel
+2. Customer Management - List with pricing configuration
+3. Orders List - Table with expandable detail view
+4. Order Detail/Review - Split view with timeline and info
+
+KEY DESIGN PATTERNS:
+--------------------
+- Three-panel structure (header, sidebar, main content)
+- Master-detail pattern (list + detail panel)
+- Expandable navigation sections
+- Tabbed detail views
+- Row selection with highlighting
+- Status badges (color-coded)
+- Timeline for order progression
+- Multi-column forms for configuration
+
+UI COMPONENTS:
+--------------
+- Header with logo, search, user menu, primary action button
+- Left sidebar with hierarchical navigation
+- Data tables with selectable rows
+- Detail panels with tabbed interface
+- Timeline components (vertical)
+- Multi-column form layouts
+- Search inputs (context-specific)
+- Action buttons (primary/secondary)
+- Status badges/pills
+- Numeric inputs with increment/decrement
+
+LAYOUT STRUCTURE:
+-----------------
+Header (full width)
+  - Logo | Search Input | User Info | Primary Action
+
+Sidebar (left, vertical)
+  - Logo
+  - Expandable navigation sections
+  - Main navigation items with icons
+
+Main Content (right, scrollable)
+  - Option A: Data table with detail panel below
+  - Option B: Full table view
+  - Option C: Form/configuration view
+
+DESIGN PRINCIPLES:
+------------------
+- Clear visual hierarchy
+- Progressive disclosure (summary → details)
+- Grouped related information
+- Prominent primary actions
+- Visual feedback for interactions
+- Responsive to screen size
+- Color-coded status indicators
+- Consistent navigation patterns
+

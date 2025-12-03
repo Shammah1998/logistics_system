@@ -1,0 +1,657 @@
+[
+  {
+    "id": "TC001",
+    "title": "Customer Signup Success",
+    "description": "Verify that a new customer can successfully sign up using valid details and receives appropriate confirmation.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to customer signup page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid customer details (email, password, name)"
+      },
+      {
+        "type": "action",
+        "description": "Submit signup form"
+      },
+      {
+        "type": "assertion",
+        "description": "Check that signup is successful and user is redirected to dashboard"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Customer Login Success",
+    "description": "Verify customer can login with valid credentials and receive JWT token with correct role assigned.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to customer login page"
+      },
+      {
+        "type": "action",
+        "description": "Input valid email and password"
+      },
+      {
+        "type": "action",
+        "description": "Submit login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Check login success and JWT token received with customer role"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "Customer Login Failure - Invalid Credentials",
+    "description": "Ensure login fails with appropriate error message when invalid credentials are provided.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to customer login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid email or password"
+      },
+      {
+        "type": "action",
+        "description": "Submit login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Check login failure with clear error message displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Customer Order Creation with Distance-Based Pricing",
+    "description": "Verify customer can create a delivery order using distance-based pricing and order is persisted with correct pricing.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as customer"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to order creation page"
+      },
+      {
+        "type": "action",
+        "description": "Select distance-based pricing option"
+      },
+      {
+        "type": "action",
+        "description": "Input valid pickup and drop locations (single drop)"
+      },
+      {
+        "type": "action",
+        "description": "Submit order and confirm pricing calculation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order saved in database with correct distance pricing and status 'pending'"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Customer Order Creation with Per-Box Pricing and Multi-Drop (Retail)",
+    "description": "Validate order creation with per-box pricing and up to 4 drops for retail customers, pricing and details saved correctly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as retail customer"
+      },
+      {
+        "type": "action",
+        "description": "Create order with per-box pricing"
+      },
+      {
+        "type": "action",
+        "description": "Add pickup location and up to 4 drop locations"
+      },
+      {
+        "type": "action",
+        "description": "Input box quantities per drop"
+      },
+      {
+        "type": "action",
+        "description": "Submit order"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm order record includes multiple drops and correct per-box pricing"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Customer Order Creation Multi-Drop Unlimited for Corporate",
+    "description": "Ensure corporate customers can create orders with unlimited drops and complex pricing is handled correctly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as corporate customer"
+      },
+      {
+        "type": "action",
+        "description": "Create order with per-box or distance pricing"
+      },
+      {
+        "type": "action",
+        "description": "Add more than 4 drops (test at least 5 drops)"
+      },
+      {
+        "type": "action",
+        "description": "Submit order"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify order persists with all drops and pricing calculated appropriately"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Order Tracking UI with Timeline and Map",
+    "description": "Check that customers can view an interactive timeline and Google Maps based tracking for their orders with updated statuses.",
+    "category": "ui",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as customer"
+      },
+      {
+        "type": "action",
+        "description": "Open existing order details"
+      },
+      {
+        "type": "assertion",
+        "description": "Ensure timeline shows correct order status progression"
+      },
+      {
+        "type": "assertion",
+        "description": "Map displays pickup and drop points accurately with current driver location"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Payment Processing with M-Pesa STK Push",
+    "description": "Validate that customers can pay using M-Pesa STK Push and payment status is reflected in order and transaction records.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Create a new order requiring payment"
+      },
+      {
+        "type": "action",
+        "description": "Select M-Pesa payment method and initiate STK Push"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify payment prompt is received on M-Pesa app"
+      },
+      {
+        "type": "action",
+        "description": "Complete payment on M-Pesa"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify payment confirmation is recorded and order status updated to paid"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Payment Processing with Wallet",
+    "description": "Verify customers can pay using wallet balance, wallet balance updates correctly, and order status changes.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Ensure customer wallet has sufficient balance"
+      },
+      {
+        "type": "action",
+        "description": "Create and pay for order using wallet option"
+      },
+      {
+        "type": "assertion",
+        "description": "Confirm wallet balance decrements by order amount"
+      },
+      {
+        "type": "assertion",
+        "description": "Order status changes to paid"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Admin Login and Role-Based Access",
+    "description": "Ensure admins can log in and have access restricted only to admin UI and API endpoints.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to admin login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid admin credentials"
+      },
+      {
+        "type": "action",
+        "description": "Submit login form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access to admin dashboard with no access to customer/driver pages"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Admin Panel UI Layout and Navigation",
+    "description": "Verify the three-panel layout of header, collapsible sidebar, and main content rendered consistently with functional navigation menus.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin"
+      },
+      {
+        "type": "assertion",
+        "description": "Observe header with correct branding and user menu"
+      },
+      {
+        "type": "assertion",
+        "description": "Sidebar is collapsible and hierarchical menus expand/collapse as expected"
+      },
+      {
+        "type": "action",
+        "description": "Navigate through sidebar menu to orders, drivers, customers"
+      },
+      {
+        "type": "assertion",
+        "description": "Main content area updates correctly with data tables"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Admin Order Management - Search, Filter, Selection, Expansion",
+    "description": "Check admin can search, filter, select, and expand rows in order data tables with tabbed detail view loading correct data.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin"
+      },
+      {
+        "type": "action",
+        "description": "Access Orders management page"
+      },
+      {
+        "type": "action",
+        "description": "Apply search and filter criteria"
+      },
+      {
+        "type": "assertion",
+        "description": "Filtered order list displays relevant results"
+      },
+      {
+        "type": "action",
+        "description": "Select multiple orders using checkboxes"
+      },
+      {
+        "type": "assertion",
+        "description": "Row selection state is maintained"
+      },
+      {
+        "type": "action",
+        "description": "Expand an order row to view master-detail tabbed interface"
+      },
+      {
+        "type": "assertion",
+        "description": "Order details and tabs load expected data correctly"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Admin POD Review and Approval Workflow",
+    "description": "Verify admins can view PODs, approve or reject with comments, and system updates POD status and audit logs accordingly.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as admin"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to POD management page"
+      },
+      {
+        "type": "action",
+        "description": "Select a pending POD for review"
+      },
+      {
+        "type": "action",
+        "description": "Approve or reject POD with optional comment"
+      },
+      {
+        "type": "assertion",
+        "description": "POD status updates accordingly in database"
+      },
+      {
+        "type": "assertion",
+        "description": "Audit log entry records approval/rejection action"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Driver Login and Role-Based Access Restriction",
+    "description": "Drivers can log in via mobile app, receive JWT tokens securely, and have access restricted to driver-specific functionality.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open driver mobile app"
+      },
+      {
+        "type": "action",
+        "description": "Input valid driver credentials"
+      },
+      {
+        "type": "action",
+        "description": "Submit login request to backend"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify driver is logged in and unauthorized access blocked on non-driver routes"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Driver App Order List and Status Tracking",
+    "description": "Drivers can view ongoing and completed orders lists with detailed progress steps for each order, reflecting real-time updates.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as driver on mobile app"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to order list screen"
+      },
+      {
+        "type": "assertion",
+        "description": "Ongoing and completed orders are displayed separately"
+      },
+      {
+        "type": "action",
+        "description": "Select an ongoing order"
+      },
+      {
+        "type": "assertion",
+        "description": "Order progress steps show accurate current status"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Driver Map Navigation Accuracy",
+    "description": "Verify the driver app loads correct navigation routes to pickup and drop-off points using integrated maps.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as driver"
+      },
+      {
+        "type": "action",
+        "description": "Open assigned order with navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Map shows correct route to pickup location"
+      },
+      {
+        "type": "action",
+        "description": "Start navigation and confirm directions"
+      },
+      {
+        "type": "assertion",
+        "description": "Map updates dynamically as driver moves"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Driver POD Upload with Camera and Signature",
+    "description": "Drivers can upload proof of delivery photos and digitally sign after dropoff, POD uploads are verified and recorded.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Driver selects completed order"
+      },
+      {
+        "type": "action",
+        "description": "Open POD upload section"
+      },
+      {
+        "type": "action",
+        "description": "Capture photo using device camera"
+      },
+      {
+        "type": "action",
+        "description": "Capture digital signature"
+      },
+      {
+        "type": "action",
+        "description": "Submit POD upload"
+      },
+      {
+        "type": "assertion",
+        "description": "POD is saved and linked to order with correct timestamps"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Driver Wallet Balance and Withdrawal Request",
+    "description": "Driver can view wallet balance, transaction history and submit withdrawal requests which appear in admin panel for approval.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as driver"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to wallet section"
+      },
+      {
+        "type": "assertion",
+        "description": "Current wallet balance and transaction history are displayed correctly"
+      },
+      {
+        "type": "action",
+        "description": "Submit withdrawal request for available balance"
+      },
+      {
+        "type": "assertion",
+        "description": "Request is created with correct amount and status 'pending'"
+      },
+      {
+        "type": "action",
+        "description": "Login as admin and verify withdrawal request appears for approval"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "API Endpoint Security and Role-Based Middleware Enforcement",
+    "description": "Verify backend API endpoints are protected by JWT authentication and role-based middleware restricts unauthorized access.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Attempt to access protected API endpoints without authentication"
+      },
+      {
+        "type": "assertion",
+        "description": "Access is denied with appropriate 401/403 error"
+      },
+      {
+        "type": "action",
+        "description": "Login as different roles (customer, admin, driver)"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to call admin-only and driver-only endpoints"
+      },
+      {
+        "type": "assertion",
+        "description": "Requests succeed or fail according to the user role and middleware rules"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Data Display Consistency - Date, Time, and Currency Formatting",
+    "description": "Validate that all dates, times, and currency values in customer panel, admin panel, and driver app use standardized formats: DD/MM/YYYY, HH:MM:SS, Ksh.",
+    "category": "ui",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login to all platform components as appropriate role"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to views showing transaction dates, order timestamps, wallets, and prices"
+      },
+      {
+        "type": "assertion",
+        "description": "Dates display as DD/MM/YYYY"
+      },
+      {
+        "type": "assertion",
+        "description": "Times display as HH:MM:SS"
+      },
+      {
+        "type": "assertion",
+        "description": "Currency values show prefix 'Ksh' and correct formatting"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "System Health Endpoint Returns Correct Status",
+    "description": "Verify the /health endpoint responds with status indicating backend service availability and readiness.",
+    "category": "functional",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Send GET request to /health endpoint"
+      },
+      {
+        "type": "assertion",
+        "description": "Response status is success (e.g. 200 OK)"
+      },
+      {
+        "type": "assertion",
+        "description": "Response message indicates system health and uptime"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "Audit Logs Capture Critical Actions",
+    "description": "Check that key system actions such as user creation, order updates, POD approvals, and withdrawal requests are logged with timestamp, user, and action details.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Perform critical actions as different roles: create user, modify order, approve POD, submit withdrawal"
+      },
+      {
+        "type": "action",
+        "description": "Access audit logs via admin interface or direct database query"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify log entries include action type, user ID, timestamp, and relevant details"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Multi-Role Logout Functionality",
+    "description": "Confirm that users of all roles (customer, admin, driver) can successfully log out invalidating their JWT tokens and restricting further API access.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Log in as a user (customer, admin, or driver)"
+      },
+      {
+        "type": "action",
+        "description": "Invoke logout API endpoint"
+      },
+      {
+        "type": "assertion",
+        "description": "Token is invalidated"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access protected endpoint with old token"
+      },
+      {
+        "type": "assertion",
+        "description": "Access is denied with unauthorized error"
+      }
+    ]
+  }
+]
