@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../config/api';
 
 // Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -198,7 +199,7 @@ export const AuthProvider = ({ children }) => {
       let userError = null;
       
       try {
-        const apiUrl = '/api';
+        const apiUrl = getApiUrl();
         const response = await fetch(`${apiUrl}/auth/verify`, {
           method: 'GET',
           headers: {

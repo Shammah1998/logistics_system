@@ -80,3 +80,4 @@ If timeout persists:
 5. Verify Supabase project is active
 
 
+

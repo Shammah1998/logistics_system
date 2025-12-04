@@ -40,15 +40,19 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // Middleware
 app.use(helmet());
 
-// CORS configuration - allow multiple origins for development
+// CORS configuration - allow multiple origins for development and production
 const allowedOrigins = [
-  'http://localhost:3001',  // Customer panel
-  'http://localhost:3002',  // Admin panel
+  // Development origins
+  'http://localhost:3001',  // Customer panel dev
+  'http://localhost:3002',  // Admin panel dev
   'http://localhost:5173',  // Vite default
   'http://127.0.0.1:3001',
   'http://127.0.0.1:3002',
   'http://127.0.0.1:5173',
-  process.env.FRONTEND_URL
+  // Production origins (set via environment variables)
+  process.env.CUSTOMER_PANEL_URL,  // Vercel customer panel URL
+  process.env.ADMIN_PANEL_URL,     // Vercel admin panel URL
+  process.env.FRONTEND_URL         // Legacy - backwards compatibility
 ].filter(Boolean);
 
 app.use(cors({
@@ -60,6 +64,11 @@ app.use(cors({
     
     // Allow all localhost origins in development
     if (process.env.NODE_ENV !== 'production' && origin.includes('localhost')) {
+      return callback(null, true);
+    }
+    
+    // Allow Vercel preview and production URLs (*.vercel.app)
+    if (origin.endsWith('.vercel.app')) {
       return callback(null, true);
     }
     

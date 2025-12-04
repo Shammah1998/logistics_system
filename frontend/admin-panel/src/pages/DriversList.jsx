@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { getApiUrl } from '../config/api';
 import toast from 'react-hot-toast';
 
 const DriversList = () => {
@@ -29,7 +30,7 @@ const DriversList = () => {
       setLoading(true);
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       
-      const response = await fetch('/api/drivers', {
+      const response = await fetch(`${getApiUrl()}/drivers`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -62,7 +63,7 @@ const DriversList = () => {
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       
-      const response = await fetch('/api/drivers', {
+      const response = await fetch(`${getApiUrl()}/drivers`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -110,7 +111,7 @@ const DriversList = () => {
         delete updateData.pin;
       }
 
-      const response = await fetch(`/api/drivers/${selectedDriver.id}`, {
+      const response = await fetch(`${getApiUrl()}/drivers/${selectedDriver.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -143,7 +144,7 @@ const DriversList = () => {
     try {
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       
-      const response = await fetch(`/api/drivers/${driverId}`, {
+      const response = await fetch(`${getApiUrl()}/drivers/${driverId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -3,17 +3,23 @@ import 'package:flutter/foundation.dart';
 
 class AppConfig {
   // API Configuration - Backend API URL
-  // This must be provided via --dart-define flags when running the app
-  // For Android emulator: use 10.0.2.2 instead of localhost
-  // For iOS simulator: localhost works
-  // For physical device: use your computer's IP address (e.g., http://192.168.1.100:3000/api)
+  // =====================================================
+  // DEVELOPMENT:
+  //   - Android emulator: use 10.0.2.2 (maps to host localhost)
+  //   - iOS simulator: localhost works
+  //   - Physical device: use your computer's IP (e.g., http://192.168.1.100:3000/api)
+  //
+  // PRODUCTION:
+  //   Build with: flutter build apk --dart-define=API_BASE_URL=https://your-backend.onrender.com/api
+  //   Or for iOS: flutter build ipa --dart-define=API_BASE_URL=https://your-backend.onrender.com/api
+  // =====================================================
   static String get apiBaseUrl {
     const envUrl = String.fromEnvironment('API_BASE_URL');
     if (envUrl.isNotEmpty) {
       return envUrl;
     }
     
-    // Auto-detect platform and use appropriate default
+    // Auto-detect platform and use appropriate default for development
     if (kIsWeb) {
       // Web: use localhost
       return 'http://localhost:3000/api';
