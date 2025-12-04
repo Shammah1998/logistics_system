@@ -6,8 +6,8 @@ Test system of an anticipated logistics system.
 
 ## Tech Stack
 
-- **Backend**: Express.js, Node.js, Supabase
-- **Frontend**: React.js (Customer Panel, Admin Panel)
+- **Server**: Express.js, Node.js, Supabase
+- **Client**: React.js (Customer Panel, Admin Panel)
 - **Mobile**: Flutter (Driver App)
 - **Database**: Supabase PostgreSQL
 - **Storage**: Supabase Storage
@@ -17,116 +17,72 @@ Test system of an anticipated logistics system.
 
 ```
 logistics_system/
-├── backend/              # Express.js API server
+├── .env                  # Root environment variables
+├── .env.example          # Template for new setups
+├── server/               # Express.js API server
 │   ├── src/
-│   │   ├── controllers/ # Request handlers
-│   │   ├── services/    # Business logic
+│   │   ├── controllers/  # Request handlers
+│   │   ├── services/     # Business logic
 │   │   ├── repositories/ # Data access
-│   │   ├── routes/      # API routes
+│   │   ├── routes/       # API routes
 │   │   ├── middleware/   # Express middleware
-│   │   └── utils/       # Utilities
-│   └── database/        # SQL schema and migrations
-├── frontend/
-│   ├── customer-panel/  # React.js customer interface
-│   └── admin-panel/    # React.js admin interface
-├── logistics_app/       # Flutter driver app
-└── reference_images/    # UI/UX layout references
+│   │   └── utils/        # Utilities
+│   └── database/         # SQL schema and migrations
+├── client/
+│   ├── customer-panel/   # React.js customer interface
+│   └── admin-panel/      # React.js admin interface
+├── logistics_app/        # Flutter driver app
+└── reference_images/     # UI/UX layout references
 ```
 
 ## Quick Start
 
-### Backend Setup
+### 1. Environment Setup
 
-1. Navigate to backend directory:
+Copy the example environment file and fill in your Supabase credentials:
+
 ```bash
-cd backend
+cp .env.example .env
 ```
 
-2. Install dependencies:
+Get your credentials from: https://app.supabase.com/project/_/settings/api
+
+### 2. Server Setup
+
 ```bash
+cd server
 npm install
-```
-
-3. **Configure environment variables** (REQUIRED):
-   - Create a `.env` file in the `backend/` directory
-   - Add your Supabase credentials (see [Environment Setup Guide](ENVIRONMENT_SETUP.md))
-   - Required variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
-
-4. Run database migrations in Supabase SQL editor:
-   - Execute `database/schema.sql`
-   - Execute `database/rls_policies.sql`
-
-5. Start the server:
-```bash
 npm run dev
 ```
 
-### Customer Panel Setup
+Server runs on: http://localhost:3000
 
-1. Navigate to customer panel:
-```bash
-cd frontend/customer-panel
-```
+### 3. Admin Panel Setup
 
-2. Install dependencies:
 ```bash
+cd client/admin-panel
 npm install
-```
-
-3. **Configure environment variables** (REQUIRED):
-   - Create a `.env` file in the `frontend/customer-panel/` directory
-   - Add your Supabase credentials (see [Environment Setup Guide](ENVIRONMENT_SETUP.md))
-   - Required variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-
-4. Start development server:
-```bash
 npm run dev
 ```
 
-### Admin Panel Setup
+Admin panel runs on: http://localhost:3002
 
-1. Navigate to admin panel:
-```bash
-cd frontend/admin-panel
-```
+### 4. Customer Panel Setup
 
-2. Install dependencies:
 ```bash
+cd client/customer-panel
 npm install
-```
-
-3. **Configure environment variables** (REQUIRED):
-   - Create a `.env` file in the `frontend/admin-panel/` directory
-   - Add your Supabase credentials (see [Environment Setup Guide](ENVIRONMENT_SETUP.md))
-   - Required variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-
-4. Start development server:
-```bash
 npm run dev
 ```
 
-### Driver App Setup
+Customer panel runs on: http://localhost:3001
 
-1. Navigate to Flutter app:
+### 5. Driver App Setup
+
 ```bash
 cd logistics_app
-```
-
-2. Install dependencies:
-```bash
 flutter pub get
-```
-
-3. **Configure environment variables** (REQUIRED):
-   - Environment variables must be passed via `--dart-define` flags
-   - See [Environment Setup Guide](ENVIRONMENT_SETUP.md) for details
-   - Required variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
-
-4. Run the app:
-```bash
-flutter run \
-  --dart-define=SUPABASE_URL=your-url \
-  --dart-define=SUPABASE_ANON_KEY=your-key
+flutter run
 ```
 
 ## Features
@@ -139,8 +95,9 @@ flutter run \
 - Payment integration (M-Pesa, wallet, invoice)
 
 ### Admin Panel
-- Order management dashboard
-- Driver management
+- Dashboard with real-time statistics
+- Order management with filtering
+- Driver management (CRUD operations)
 - Customer management
 - POD review and approval
 - Withdrawal request approval
@@ -158,25 +115,51 @@ flutter run \
 
 ## API Documentation
 
-See `backend/API_DOCUMENTATION.md` for complete API documentation.
+See `server/API_DOCUMENTATION.md` for complete API documentation.
+
+### Available Endpoints
+
+- `GET /api/dashboard/stats` - Dashboard statistics
+- `GET /api/orders` - List orders
+- `POST /api/orders/create` - Create order
+- `GET /api/drivers` - List drivers
+- `POST /api/drivers` - Create driver
+- `GET /api/customers` - List customers
+- `POST /api/auth/drivers/login` - Driver login
+- `GET /api/auth/verify` - Verify token
 
 ## Pricing Engine
 
-See `backend/PRICING_ENGINE.md` for pricing calculation details.
+See `server/PRICING_ENGINE.md` for pricing calculation details.
 
 ## Database Schema
 
-See `backend/database/schema.sql` for complete database schema.
+See `server/database/schema.sql` for complete database schema.
 
 ## Environment Variables
 
-**⚠️ IMPORTANT:** All hardcoded credentials have been removed. You **must** configure environment variables before running any component.
-
-See **[ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md)** for complete setup instructions, including:
+See **[ENV_SETUP_GUIDE.md](ENV_SETUP_GUIDE.md)** for complete setup instructions, including:
 - How to get Supabase credentials
 - Step-by-step setup for each component
-- Troubleshooting guide
+- Production deployment guide
 - Security best practices
+
+## Production Deployment
+
+### Server → Render
+- Root directory: `server`
+- Build command: `npm install`
+- Start command: `npm start`
+
+### Client Apps → Vercel
+- Admin panel root directory: `client/admin-panel`
+- Customer panel root directory: `client/customer-panel`
+
+### Flutter App → APK
+```bash
+cd logistics_app
+flutter build apk --release
+```
 
 ## Development
 
