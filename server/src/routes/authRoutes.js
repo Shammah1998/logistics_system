@@ -23,6 +23,12 @@ function normalizePhone(phone) {
   return cleaned;
 }
 
+// Helper function to generate driver email (must match driver creation)
+function generateDriverEmail(phone) {
+  const cleanPhone = normalizePhone(phone);
+  return `driver_${cleanPhone.replace(/\+/g, '')}@drivers.xobo.co.ke`;
+}
+
 // Driver login endpoint - supports phone + PIN
 router.post('/drivers/login', async (req, res, next) => {
   try {
@@ -98,25 +104,87 @@ router.post('/drivers/login', async (req, res, next) => {
     }
 
     // Get the driver's email for Supabase auth
-    const driverEmail = userData.email;
-    logger.info('Found driver', { userId: userData.id, email: driverEmail, phone: userData.phone });
+    let driverEmail = userData.email;
+    
+    // If email is missing or doesn't match expected format, generate it
+    if (!driverEmail || !driverEmail.includes('@drivers.xobo.co.ke')) {
+      driverEmail = generateDriverEmail(userData.phone);
+      logger.warn('Email mismatch, using generated email', { 
+        storedEmail: userData.email, 
+        generatedEmail: driverEmail,
+        phone: userData.phone 
+      });
+    }
+    
+    logger.info('Found driver', { 
+      userId: userData.id, 
+      email: driverEmail, 
+      phone: userData.phone,
+      storedEmail: userData.email 
+    });
 
     // Authenticate with Supabase using email + PIN as password
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    logger.info('Attempting Supabase auth', { 
+      email: driverEmail, 
+      phone: userData.phone,
+      hasPassword: !!password,
+      passwordLength: password?.length 
+    });
+    
+    let authData = null;
+    let authError = null;
+    
+    // Try with stored email first
+    const authResult = await supabase.auth.signInWithPassword({
       email: driverEmail,
       password: password, // PIN is used as password
     });
+    
+    authData = authResult.data;
+    authError = authResult.error;
+    
+    // If auth fails and email was generated, try with stored email (if different)
+    if (authError && driverEmail !== userData.email && userData.email) {
+      logger.info('Retrying with stored email', { storedEmail: userData.email });
+      const retryResult = await supabase.auth.signInWithPassword({
+        email: userData.email,
+        password: password,
+      });
+      
+      if (!retryResult.error && retryResult.data) {
+        authData = retryResult.data;
+        authError = null;
+        driverEmail = userData.email; // Use the working email
+      }
+    }
 
-    if (authError || !authData.user) {
+    if (authError || !authData?.user) {
       logger.warn('Driver auth failed', { 
         phone: normalizedPhone, 
         email: driverEmail,
+        storedEmail: userData.email,
         error: authError?.message,
-        errorCode: authError?.status 
+        errorCode: authError?.status,
+        errorDetails: authError
       });
+      
+      // Provide more helpful error message
+      let errorMessage = 'Invalid phone number or PIN';
+      if (authError?.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid PIN. Please check your PIN and try again.';
+      } else if (authError?.message?.includes('Email not confirmed')) {
+        errorMessage = 'Account not activated. Please contact support.';
+      }
+      
       return res.status(401).json({
         success: false,
-        message: 'Invalid phone number or PIN'
+        message: errorMessage,
+        debug: process.env.NODE_ENV === 'development' ? {
+          email: driverEmail,
+          storedEmail: userData.email,
+          phone: userData.phone,
+          error: authError?.message
+        } : undefined
       });
     }
 

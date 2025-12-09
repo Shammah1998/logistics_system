@@ -193,9 +193,9 @@ const startServer = async () => {
   await cache.connect();
   
   // Start Express server
-  app.listen(PORT, () => {
+app.listen(PORT, () => {
     logger.info(`🚀 Server running on port ${PORT}`, {
-      env: process.env.NODE_ENV,
+    env: process.env.NODE_ENV,
       port: PORT,
       cache: cache.isAvailable() ? 'Redis connected' : 'Running without cache'
     });

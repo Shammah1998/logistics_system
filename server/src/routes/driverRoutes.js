@@ -140,8 +140,10 @@ router.post('/', authenticate, requireUserType('admin'), async (req, res, next) 
       });
     }
 
-    // Create email from phone (for Supabase auth)
+    // Create email from phone (for Supabase auth) - must match login logic
+    // Format: driver_<phone_without_plus>@drivers.xobo.co.ke
     const email = `driver_${cleanPhone.replace(/\+/g, '')}@drivers.xobo.co.ke`;
+    logger.info('Creating driver with email', { phone: cleanPhone, email });
 
     // Create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -166,22 +168,38 @@ router.post('/', authenticate, requireUserType('admin'), async (req, res, next) 
     const userId = authData.user.id;
 
     // Create user record in users table
-    const { error: userError } = await supabase
+    // Note: Using service role key should bypass RLS, but ensure it's set correctly
+    const { data: userData, error: userError } = await supabase
       .from('users')
       .insert({
         id: userId,
         email: email,
         phone: cleanPhone,
         full_name: fullName,
-        user_type: 'driver'
-      });
+        user_type: 'driver',
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single();
 
     if (userError) {
-      logger.error('Error creating user record', { error: userError.message });
-      await supabase.auth.admin.deleteUser(userId);
+      logger.error('Error creating user record', { 
+        error: userError.message,
+        details: userError,
+        userId,
+        email,
+        phone: cleanPhone
+      });
+      // Try to clean up auth user if it was created
+      try {
+        await supabase.auth.admin.deleteUser(userId);
+      } catch (cleanupError) {
+        logger.warn('Failed to cleanup auth user', { error: cleanupError.message });
+      }
       return res.status(500).json({
         success: false,
-        message: 'Failed to create user record'
+        message: `Failed to create user record: ${userError.message}`,
+        details: process.env.NODE_ENV === 'development' ? userError : undefined
       });
     }
 
@@ -206,8 +224,8 @@ router.post('/', authenticate, requireUserType('admin'), async (req, res, next) 
       });
     }
 
-    // Create wallet for driver
-    await supabase
+    // Create wallet for driver (non-critical, log but don't fail)
+    const { error: walletError } = await supabase
       .from('wallets')
       .insert({
         driver_id: userId,
@@ -216,15 +234,39 @@ router.post('/', authenticate, requireUserType('admin'), async (req, res, next) 
         total_earned: 0
       });
 
-    // Store driver credentials
-    const pinHash = await bcrypt.hash(pin, 10);
-    await supabase
-      .from('driver_credentials')
-      .insert({
-        driver_id: userId,
-        phone: cleanPhone,
-        pin_hash: pinHash
+    if (walletError) {
+      logger.warn('Error creating wallet (non-critical)', { 
+        error: walletError.message, 
+        driverId: userId 
       });
+      // Continue - wallet can be created later
+    }
+
+    // Store driver credentials (non-critical, log but don't fail)
+    try {
+      const pinHash = await bcrypt.hash(pin, 10);
+      const { error: credError } = await supabase
+        .from('driver_credentials')
+        .insert({
+          driver_id: userId,
+          phone: cleanPhone,
+          pin_hash: pinHash
+        });
+
+      if (credError) {
+        logger.warn('Error storing driver credentials (non-critical)', { 
+          error: credError.message, 
+          driverId: userId 
+        });
+        // Continue - credentials are optional, Supabase Auth is primary
+      }
+    } catch (hashError) {
+      logger.warn('Error hashing PIN (non-critical)', { 
+        error: hashError.message, 
+        driverId: userId 
+      });
+      // Continue - PIN is stored in Supabase Auth anyway
+    }
 
     // Invalidate drivers cache
     await Promise.all([
