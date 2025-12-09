@@ -53,7 +53,11 @@ RETURNS TABLE(
   in_transit BIGINT,
   delivered BIGINT,
   cancelled BIGINT
-) AS $$
+) 
+LANGUAGE plpgsql 
+STABLE
+SET search_path = public
+AS $$
 BEGIN
   RETURN QUERY
   SELECT 
@@ -63,5 +67,5 @@ BEGIN
     (SELECT COUNT(*) FROM orders WHERE status = 'delivered')::BIGINT,
     (SELECT COUNT(*) FROM orders WHERE status = 'cancelled')::BIGINT;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$;
 
