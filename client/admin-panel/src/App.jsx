@@ -15,7 +15,16 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Toaster position="top-right" />
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+          }}
+        />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route

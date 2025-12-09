@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 // Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const customerSiteUrl = import.meta.env.VITE_CUSTOMER_PANEL_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
 // Validate required environment variables (lazy check)
 function validateEnvVars() {
@@ -110,10 +111,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signUp = async ({ email, password, fullName, phone }) => {
+    const redirectTo = `${customerSiteUrl || ''}/login`;
+
     const { data, error } = await getSupabaseClient().auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: redirectTo,
         data: {
           full_name: fullName,
           phone,

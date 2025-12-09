@@ -14,6 +14,7 @@ const Signup = () => {
     confirmPassword: '',
   });
   const [loading, setLoading] = useState(false);
+  const [emailNotice, setEmailNotice] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,7 +37,9 @@ const Signup = () => {
         fullName: formData.fullName,
         phone: formData.phone,
       });
-      toast.success('Account created! Please check your email to verify.');
+      const notice = `Account created! A verification email has been sent to ${formData.email}. Please check your inbox (and spam) to activate your account.`;
+      setEmailNotice(notice);
+      toast.success(notice);
       navigate('/login');
     } catch (error) {
       console.error('Signup error:', error);
@@ -98,6 +101,11 @@ const Signup = () => {
             </div>
 
             <div className="rounded-2xl border border-slate-100 bg-white p-8 shadow-lg shadow-slate-100/60">
+              {emailNotice && (
+                <div className="mb-4 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                  {emailNotice}
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700">Full name</label>

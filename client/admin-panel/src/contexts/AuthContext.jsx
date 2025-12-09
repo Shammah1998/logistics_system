@@ -25,29 +25,14 @@ function getSupabaseClient() {
   validateEnvVars();
   if (!supabase) {
     console.log('🔧 Creating Supabase client with URL:', supabaseUrl);
-    
-    // Clear any stored session data to prevent hanging on refresh
-    if (typeof window !== 'undefined') {
-      try {
-        const storedSession = localStorage.getItem('sb-auth-token');
-        if (storedSession) {
-          console.log('🗑️ Clearing stored session to prevent refresh hang');
-          localStorage.removeItem('sb-auth-token');
-        }
-      } catch (e) {
-        console.error('Error clearing stored session:', e);
-      }
-    }
-    
+
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
-        autoRefreshToken: true,
+        autoRefreshToken: true, // keep admin sessions alive
         detectSessionInUrl: false,
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
         storageKey: 'sb-auth-token',
-        // Disable automatic token refresh on init to prevent hanging
-        autoRefreshToken: false
       }
     });
   }
@@ -214,9 +199,19 @@ export const AuthProvider = ({ children }) => {
             userData = { user_type: verifyData.data.user.userType };
             console.log('✅ User type from backend API:', userData.user_type);
           }
+        } else if (response.status === 401) {
+          // 401 is expected in some cases (token not yet validated), silently fall through to Supabase query
+          // Don't log as error - this is normal behavior
+        } else {
+          // Only log non-401 errors
+          console.warn('⚠️ Backend API returned:', response.status);
         }
       } catch (apiError) {
-        console.warn('⚠️ Backend API failed:', apiError.message);
+        // Network errors are expected, don't log as warnings
+        // Only log if it's a real issue
+        if (apiError.name !== 'TypeError') {
+          console.warn('⚠️ Backend API failed:', apiError.message);
+        }
       }
       
       // Fallback to direct query
