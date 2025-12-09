@@ -26,6 +26,17 @@ function getSupabaseClient() {
   if (!supabase) {
     console.log('🔧 Creating Supabase client with URL:', supabaseUrl);
 
+    // Create custom fetch with timeout for production
+    const customFetch = (url, options = {}) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+      
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+    };
+
     supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
@@ -33,6 +44,9 @@ function getSupabaseClient() {
         detectSessionInUrl: false,
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
         storageKey: 'sb-auth-token',
+      },
+      global: {
+        fetch: customFetch,
       }
     });
   }
@@ -59,20 +73,41 @@ export const AuthProvider = ({ children }) => {
     let isMounted = true;
     let timeoutId;
 
-    // Set a timeout to prevent infinite loading (10 seconds max)
+    // Set a timeout to prevent infinite loading (3 seconds max - fail fast)
     timeoutId = setTimeout(() => {
       if (isMounted && loading) {
         console.warn('⚠️ Auth initialization timeout - setting loading to false');
         setLoading(false);
       }
-    }, 10000);
+    }, 3000);
 
     const initAuth = async () => {
       try {
         const client = getSupabaseClient();
         console.log('📡 Calling getSession()...');
         const startTime = Date.now();
-        const { data: { session }, error: sessionError } = await client.auth.getSession();
+        
+        // Add timeout to getSession call (5 seconds max)
+        const sessionPromise = client.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session check timeout')), 5000)
+        );
+        
+        let sessionResult;
+        try {
+          sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
+        } catch (timeoutError) {
+          console.warn('⚠️ Session check timed out, continuing without session');
+          if (isMounted) {
+            setUser(null);
+            setUserType(null);
+            setLoading(false);
+            clearTimeout(timeoutId);
+          }
+          return;
+        }
+        
+        const { data: { session }, error: sessionError } = sessionResult;
         console.log(`📡 getSession() completed in ${Date.now() - startTime}ms`);
         
         if (!isMounted) return;
@@ -83,20 +118,31 @@ export const AuthProvider = ({ children }) => {
           setUserType(null);
         } else if (session?.user) {
           setUser(session.user);
-          // Fetch user type
-          const { data, error } = await client
-            .from('users')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (!isMounted) return;
-          
-          if (error) {
-            console.error('Error fetching user type:', error);
+          // Fetch user type with timeout
+          try {
+            const userTypePromise = client
+              .from('users')
+              .select('user_type')
+              .eq('id', session.user.id)
+              .single();
+            
+            const userTypeTimeout = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('User type fetch timeout')), 3000)
+            );
+            
+            const { data, error } = await Promise.race([userTypePromise, userTypeTimeout]);
+            
+            if (!isMounted) return;
+            
+            if (error) {
+              console.error('Error fetching user type:', error);
+              setUserType(null);
+            } else {
+              setUserType(data?.user_type);
+            }
+          } catch (userTypeError) {
+            console.warn('⚠️ User type fetch timed out, continuing without user type');
             setUserType(null);
-          } else {
-            setUserType(data?.user_type);
           }
         } else {
           setUser(null);
@@ -159,12 +205,18 @@ export const AuthProvider = ({ children }) => {
     try {
       const client = getSupabaseClient();
       
-      // Simple direct call - no timeout wrapper
+      // Add timeout to signIn call (10 seconds max)
       console.log('📡 Calling Supabase signInWithPassword...');
-      const { data, error } = await client.auth.signInWithPassword({
+      const signInPromise = client.auth.signInWithPassword({
         email,
         password,
       });
+      
+      const signInTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Login request timed out. Please check your internet connection and try again.')), 10000)
+      );
+      
+      const { data, error } = await Promise.race([signInPromise, signInTimeout]);
       
       console.log('📡 Supabase response received');
       
@@ -179,19 +231,25 @@ export const AuthProvider = ({ children }) => {
       
       console.log('✅ Auth successful, fetching user type...');
       
-      // Fetch user type - try backend API first
+      // Fetch user type - try backend API first with timeout
       let userData = null;
       let userError = null;
       
       try {
         const apiUrl = getApiUrl();
-        const response = await fetch(`${apiUrl}/auth/verify`, {
+        const verifyPromise = fetch(`${apiUrl}/auth/verify`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${data.session.access_token}`,
             'Content-Type': 'application/json'
           }
         });
+        
+        const verifyTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Verify timeout')), 5000)
+        );
+        
+        const response = await Promise.race([verifyPromise, verifyTimeout]);
         
         if (response.ok) {
           const verifyData = await response.json();
@@ -200,31 +258,35 @@ export const AuthProvider = ({ children }) => {
             console.log('✅ User type from backend API:', userData.user_type);
           }
         } else if (response.status === 401) {
-          // 401 is expected in some cases (token not yet validated), silently fall through to Supabase query
-          // Don't log as error - this is normal behavior
-        } else {
-          // Only log non-401 errors
-          console.warn('⚠️ Backend API returned:', response.status);
+          // 401 is expected in some cases, silently fall through
         }
       } catch (apiError) {
-        // Network errors are expected, don't log as warnings
-        // Only log if it's a real issue
-        if (apiError.name !== 'TypeError') {
+        // Timeout or network error - fall through to Supabase query
+        if (apiError.message !== 'Verify timeout') {
           console.warn('⚠️ Backend API failed:', apiError.message);
         }
       }
       
-      // Fallback to direct query
+      // Fallback to direct query with timeout
       if (!userData) {
         console.log('📡 Fetching user type from Supabase...');
-        const { data: queryData, error: queryError } = await client
+        const queryPromise = client
           .from('users')
           .select('user_type')
           .eq('id', data.user.id)
           .single();
         
-        userData = queryData;
-        userError = queryError;
+        const queryTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('User type query timeout')), 5000)
+        );
+        
+        try {
+          const { data: queryData, error: queryError } = await Promise.race([queryPromise, queryTimeout]);
+          userData = queryData;
+          userError = queryError;
+        } catch (timeoutError) {
+          throw new Error('Unable to verify user account. Please try again.');
+        }
       }
       
       if (userError) {
