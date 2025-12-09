@@ -64,6 +64,7 @@ export const AuthProvider = ({ children }) => {
     initRef.current = true;
 
     let isMounted = true;
+    let authStateChangeHandled = false;
 
     const initAuth = async () => {
       console.log('📡 Initializing auth...');
@@ -85,14 +86,26 @@ export const AuthProvider = ({ children }) => {
           setUser(session.user);
           
           // Fetch user type
-          const { data: userData } = await client
-            .from('users')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (isMounted) {
-            setUserType(userData?.user_type || null);
+          try {
+            const { data: userData, error: userError } = await client
+              .from('users')
+              .select('user_type')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (isMounted) {
+              if (userError) {
+                console.error('Error fetching user type:', userError.message);
+                setUserType(null);
+              } else {
+                setUserType(userData?.user_type || null);
+              }
+            }
+          } catch (err) {
+            console.error('Error in user type fetch:', err.message);
+            if (isMounted) {
+              setUserType(null);
+            }
           }
         } else {
           console.log('📡 No existing session');
@@ -106,7 +119,8 @@ export const AuthProvider = ({ children }) => {
           setUserType(null);
         }
       } finally {
-        if (isMounted) {
+        // Only set ready if auth state change hasn't already handled it
+        if (isMounted && !authStateChangeHandled) {
           setLoading(false);
           setAuthReady(true);
           console.log('✅ Auth initialization complete');
@@ -114,35 +128,58 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    // Start auth initialization
-    initAuth();
-
-    // Set up auth state change listener
+    // Set up auth state change listener FIRST (before initAuth)
+    // This ensures we catch SIGNED_IN events immediately
     const { data: { subscription } } = getSupabaseClient().auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event);
         
-          if (!isMounted) return;
-          
-          if (session?.user) {
-            setUser(session.user);
+        if (!isMounted) return;
+        authStateChangeHandled = true;
+        
+        if (session?.user) {
+          setUser(session.user);
           
           // Fetch user type on auth change
-          const { data: userData } = await getSupabaseClient()
+          try {
+            const { data: userData, error: userError } = await getSupabaseClient()
               .from('users')
               .select('user_type')
               .eq('id', session.user.id)
               .single();
             
-          if (isMounted) {
-            setUserType(userData?.user_type || null);
+            if (isMounted) {
+              if (userError) {
+                console.error('Error fetching user type in auth change:', userError.message);
+                setUserType(null);
+              } else {
+                setUserType(userData?.user_type || null);
+              }
+              // Always clear loading states when auth state changes
+              setLoading(false);
+              setAuthReady(true);
+            }
+          } catch (err) {
+            console.error('Error in auth state change handler:', err.message);
+            if (isMounted) {
+              setUserType(null);
+              setLoading(false);
+              setAuthReady(true);
+            }
           }
-          } else {
-            setUser(null);
-            setUserType(null);
+        } else {
+          setUser(null);
+          setUserType(null);
+          if (isMounted) {
+            setLoading(false);
+            setAuthReady(true);
           }
         }
-      );
+      }
+    );
+
+    // Start auth initialization AFTER setting up listener
+    initAuth();
 
     return () => {
       isMounted = false;

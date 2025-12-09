@@ -23,22 +23,32 @@ class CacheService {
         // Use separate config (Redis Cloud recommended format)
         logger.info('Connecting to Redis using host/port config...');
         const isProduction = process.env.NODE_ENV === 'production';
+        
+        // Redis Cloud requires TLS in production
+        // Configure TLS properly to avoid "packet length too long" errors
+        const socketConfig = {
+          host: redisHost,
+          port: parseInt(redisPort),
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              logger.warn('Redis: Max reconnection attempts reached, running without cache');
+              return false;
+            }
+            return Math.min(retries * 100, 3000);
+          }
+        };
+        
+        // Add TLS configuration for production (Redis Cloud)
+        if (isProduction) {
+          socketConfig.tls = {
+            rejectUnauthorized: false // Redis Cloud uses self-signed certificates
+          };
+        }
+        
         clientConfig = {
           username: 'default',
           password: redisPassword,
-          socket: {
-            host: redisHost,
-            port: parseInt(redisPort),
-            // Redis Cloud requires TLS in production
-            tls: isProduction ? true : undefined,
-            reconnectStrategy: (retries) => {
-              if (retries > 10) {
-                logger.warn('Redis: Max reconnection attempts reached, running without cache');
-                return false;
-              }
-              return Math.min(retries * 100, 3000);
-            }
-          }
+          socket: socketConfig
         };
       } else if (redisUrl) {
         // Use URL format (fallback)
