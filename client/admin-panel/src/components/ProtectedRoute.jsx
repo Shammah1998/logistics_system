@@ -4,15 +4,16 @@ import { useEffect } from 'react';
 import toast from 'react-hot-toast';
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
-  const { user, userType, loading } = useAuth();
+  const { user, userType, loading, authReady } = useAuth();
 
   useEffect(() => {
-    if (!loading && requireAdmin && user && userType !== 'admin') {
+    if (authReady && requireAdmin && user && userType !== 'admin') {
       toast.error('Access denied. Admin privileges required.');
     }
-  }, [loading, requireAdmin, user, userType]);
+  }, [authReady, requireAdmin, user, userType]);
 
-  if (loading) {
+  // Show loading while auth is initializing
+  if (loading || !authReady) {
     return (
       <div style={{ 
         display: 'flex', 

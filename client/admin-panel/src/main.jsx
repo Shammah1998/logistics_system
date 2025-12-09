@@ -5,23 +5,35 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 
-// Suppress known console warnings from third-party libraries
-if (import.meta.env.PROD) {
-  const originalWarn = console.warn;
-  console.warn = (...args) => {
-    const message = args[0]?.toString() || '';
-    // Suppress known warnings from dependencies
-    if (
-      message.includes('Default export is deprecated') ||
-      message.includes('DialogContent') ||
-      message.includes('DialogTitle') ||
-      message.includes('aria-describedby')
-    ) {
-      return; // Suppress these warnings
-    }
-    originalWarn.apply(console, args);
-  };
-}
+// Suppress known console warnings from third-party libraries (zustand, radix-ui)
+const originalWarn = console.warn;
+const originalError = console.error;
+
+console.warn = (...args) => {
+  const message = args[0]?.toString() || '';
+  if (
+    message.includes('Default export is deprecated') ||
+    message.includes('DialogContent') ||
+    message.includes('DialogTitle') ||
+    message.includes('aria-describedby') ||
+    message.includes('zustand')
+  ) {
+    return;
+  }
+  originalWarn.apply(console, args);
+};
+
+console.error = (...args) => {
+  const message = args[0]?.toString() || '';
+  // Suppress non-critical errors that clutter the console
+  if (
+    message.includes('DialogContent') ||
+    message.includes('DialogTitle')
+  ) {
+    return;
+  }
+  originalError.apply(console, args);
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {

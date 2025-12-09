@@ -8,7 +8,8 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [testStatus, setTestStatus] = useState('');
-  const { signIn, signOut, loading: authLoading } = useAuth();
+  const [loginError, setLoginError] = useState('');
+  const { signIn, signOut, loading: authLoading, authReady } = useAuth();
   const navigate = useNavigate();
 
   // Test Supabase connection directly
@@ -66,6 +67,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setLoginError('');
 
     try {
       console.log('🚀 Login attempt started for:', email);
@@ -75,6 +77,7 @@ const Login = () => {
       if (!result.userType || result.userType !== 'admin') {
         console.warn('⚠️ Login successful but user is not admin:', result.userType);
         toast.error('Access denied. Admin privileges required.');
+        setLoginError('Access denied. Admin privileges required.');
         // Sign out the user since they're not an admin
         await signOut();
         return;
@@ -88,13 +91,17 @@ const Login = () => {
       const errorMessage = error.message || 'Login failed. Please check your credentials.';
       
       // Provide more specific error messages
-      if (errorMessage.includes('timeout')) {
-        toast.error('Login timed out. The database query is taking too long. Please try again.');
-      } else if (errorMessage.includes('Invalid login credentials')) {
-        toast.error('Invalid email or password. Please check your credentials.');
+      let displayError;
+      if (errorMessage.includes('Invalid login credentials')) {
+        displayError = 'Invalid email or password. Please check your credentials.';
+      } else if (errorMessage.includes('fetch') || errorMessage.includes('network')) {
+        displayError = 'Network error. Please check your internet connection.';
       } else {
-        toast.error(errorMessage);
+        displayError = errorMessage;
       }
+      
+      setLoginError(displayError);
+      toast.error(displayError);
     } finally {
       setLoading(false);
     }
@@ -141,12 +148,18 @@ const Login = () => {
                   />
                 </div>
 
+                {loginError && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                    {loginError}
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !authReady}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                 >
-                  {loading ? 'Signing in...' : 'Sign in'}
+                  {!authReady ? 'Initializing...' : loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </form>
               
