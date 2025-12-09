@@ -28,7 +28,7 @@ async function fetchCustomersWithStats() {
   
   const { data: orderStats } = await supabase
     .from('orders')
-    .select('customer_id, total_amount, status')
+    .select('customer_id, total_price, status')
     .in('customer_id', customerIds);
 
   // Calculate stats per customer
@@ -43,7 +43,7 @@ async function fetchCustomersWithStats() {
         };
       }
       statsMap[order.customer_id].orderCount++;
-      statsMap[order.customer_id].totalSpent += order.total_amount || 0;
+      statsMap[order.customer_id].totalSpent += order.total_price || 0;
       if (['pending', 'assigned', 'in_transit'].includes(order.status)) {
         statsMap[order.customer_id].pendingOrders++;
       }
@@ -109,7 +109,7 @@ router.get('/:customerId', authenticate, requireUserType('admin'), async (req, r
         // Get customer's recent orders
         const { data: orders } = await supabase
           .from('orders')
-          .select('id, total_amount, status, created_at')
+          .select('id, total_price, status, created_at')
           .eq('customer_id', customerId)
           .order('created_at', { ascending: false })
           .limit(10);

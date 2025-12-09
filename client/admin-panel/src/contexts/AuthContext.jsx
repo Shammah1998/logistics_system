@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
         const { data: { session }, error } = await client.auth.getSession();
         
         if (!isMounted) return;
-        
+
         if (error) {
           console.error('Session error:', error.message);
           setUser(null);
@@ -122,27 +122,27 @@ export const AuthProvider = ({ children }) => {
       async (event, session) => {
         console.log('🔄 Auth state changed:', event);
         
-        if (!isMounted) return;
-        
-        if (session?.user) {
-          setUser(session.user);
+          if (!isMounted) return;
+          
+          if (session?.user) {
+            setUser(session.user);
           
           // Fetch user type on auth change
           const { data: userData } = await getSupabaseClient()
-            .from('users')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
-          
+              .from('users')
+              .select('user_type')
+              .eq('id', session.user.id)
+              .single();
+            
           if (isMounted) {
             setUserType(userData?.user_type || null);
           }
-        } else {
-          setUser(null);
-          setUserType(null);
+          } else {
+            setUser(null);
+            setUserType(null);
+          }
         }
-      }
-    );
+      );
 
     return () => {
       isMounted = false;
@@ -154,61 +154,61 @@ export const AuthProvider = ({ children }) => {
   const signIn = async (email, password) => {
     console.log('🔐 Starting login for:', email);
     
-    const client = getSupabaseClient();
-    
+      const client = getSupabaseClient();
+      
     // Direct Supabase call - no wrappers, no timeouts
-    console.log('📡 Calling Supabase signInWithPassword...');
-    const { data, error } = await client.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    console.log('📡 Supabase response received');
-    
-    if (error) {
-      console.error('❌ Auth error:', error.message);
-      throw error;
-    }
-    
-    if (!data?.user) {
-      throw new Error('Authentication failed - no user data returned');
-    }
-    
-    console.log('✅ Auth successful, fetching user type...');
-    
-    // Fetch user type - try backend API first
-    let userData = null;
-    
-    try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/auth/verify`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${data.session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+      console.log('📡 Calling Supabase signInWithPassword...');
+      const { data, error } = await client.auth.signInWithPassword({
+        email,
+        password,
       });
       
-      if (response.ok) {
-        const verifyData = await response.json();
-        if (verifyData.success && verifyData.data?.user?.userType) {
-          userData = { user_type: verifyData.data.user.userType };
-          console.log('✅ User type from backend API:', userData.user_type);
-        }
-      }
-    } catch (apiError) {
-      console.warn('⚠️ Backend API verify failed, using Supabase fallback');
-    }
-    
-    // Fallback to direct Supabase query
-    if (!userData) {
-      console.log('📡 Fetching user type from Supabase...');
-      const { data: queryData, error: queryError } = await client
-        .from('users')
-        .select('user_type')
-        .eq('id', data.user.id)
-        .single();
+      console.log('📡 Supabase response received');
       
+      if (error) {
+      console.error('❌ Auth error:', error.message);
+        throw error;
+      }
+      
+      if (!data?.user) {
+        throw new Error('Authentication failed - no user data returned');
+      }
+      
+      console.log('✅ Auth successful, fetching user type...');
+      
+      // Fetch user type - try backend API first
+      let userData = null;
+      
+      try {
+        const apiUrl = getApiUrl();
+        const response = await fetch(`${apiUrl}/auth/verify`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${data.session.access_token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const verifyData = await response.json();
+          if (verifyData.success && verifyData.data?.user?.userType) {
+            userData = { user_type: verifyData.data.user.userType };
+            console.log('✅ User type from backend API:', userData.user_type);
+          }
+        }
+      } catch (apiError) {
+      console.warn('⚠️ Backend API verify failed, using Supabase fallback');
+      }
+      
+    // Fallback to direct Supabase query
+      if (!userData) {
+        console.log('📡 Fetching user type from Supabase...');
+        const { data: queryData, error: queryError } = await client
+          .from('users')
+          .select('user_type')
+          .eq('id', data.user.id)
+          .single();
+        
       if (queryError) {
         console.error('❌ Error fetching user type:', queryError.message);
         if (queryError.code === 'PGRST116') {
@@ -218,18 +218,18 @@ export const AuthProvider = ({ children }) => {
       }
       
       userData = queryData;
-    }
-    
-    if (!userData?.user_type) {
-      throw new Error('User account missing required information.');
-    }
-    
-    console.log('✅ Login complete. User type:', userData.user_type);
-    
-    setUserType(userData.user_type);
-    setUser(data.user);
-    
-    return { ...data, userType: userData.user_type };
+      }
+      
+      if (!userData?.user_type) {
+        throw new Error('User account missing required information.');
+      }
+      
+      console.log('✅ Login complete. User type:', userData.user_type);
+      
+      setUserType(userData.user_type);
+      setUser(data.user);
+      
+      return { ...data, userType: userData.user_type };
   };
 
   const signOut = async () => {

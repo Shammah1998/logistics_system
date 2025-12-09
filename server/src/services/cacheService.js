@@ -22,12 +22,15 @@ class CacheService {
       if (redisHost && redisPort && redisPassword) {
         // Use separate config (Redis Cloud recommended format)
         logger.info('Connecting to Redis using host/port config...');
+        const isProduction = process.env.NODE_ENV === 'production';
         clientConfig = {
           username: 'default',
           password: redisPassword,
           socket: {
             host: redisHost,
             port: parseInt(redisPort),
+            // Redis Cloud requires TLS in production
+            tls: isProduction ? true : undefined,
             reconnectStrategy: (retries) => {
               if (retries > 10) {
                 logger.warn('Redis: Max reconnection attempts reached, running without cache');
@@ -118,10 +121,10 @@ class CacheService {
     try {
       const data = await this.client.get(key);
       if (data) {
-        logger.debug(`Cache HIT: ${key}`);
+        logger.info(`✅ Cache HIT: ${key}`);
         return JSON.parse(data);
       }
-      logger.debug(`Cache MISS: ${key}`);
+      logger.info(`❌ Cache MISS: ${key}`);
       return null;
     } catch (error) {
       logger.error('Cache get error:', error.message);
@@ -135,7 +138,7 @@ class CacheService {
     
     try {
       await this.client.setEx(key, ttl, JSON.stringify(data));
-      logger.debug(`Cache SET: ${key} (TTL: ${ttl}s)`);
+      logger.info(`💾 Cache SET: ${key} (TTL: ${ttl}s)`);
       return true;
     } catch (error) {
       logger.error('Cache set error:', error.message);
@@ -149,7 +152,7 @@ class CacheService {
     
     try {
       await this.client.del(key);
-      logger.debug(`Cache DEL: ${key}`);
+      logger.info(`🗑️ Cache DEL: ${key}`);
       return true;
     } catch (error) {
       logger.error('Cache del error:', error.message);
@@ -165,7 +168,7 @@ class CacheService {
       const keys = await this.client.keys(pattern);
       if (keys.length > 0) {
         await this.client.del(keys);
-        logger.debug(`Cache DEL pattern: ${pattern} (${keys.length} keys)`);
+        logger.info(`🗑️ Cache DEL pattern: ${pattern} (${keys.length} keys)`);
       }
       return true;
     } catch (error) {

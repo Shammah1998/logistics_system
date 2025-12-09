@@ -18,7 +18,7 @@ async function fetchOrders(userId, userType, status, limit, offset) {
       id,
       order_number,
       pickup_address,
-      total_amount,
+      total_price,
       total_distance,
       status,
       vehicle_type,
@@ -34,9 +34,9 @@ async function fetchOrders(userId, userType, status, limit, offset) {
         id,
         recipient_name,
         address,
-        phone,
+        recipient_phone,
         status,
-        sequence_number
+        drop_sequence
       )
     `)
     .order('created_at', { ascending: false })
@@ -80,7 +80,7 @@ async function fetchOrders(userId, userType, status, limit, offset) {
     id: order.id,
     orderNumber: order.order_number || order.id.slice(0, 8).toUpperCase(),
     pickupAddress: order.pickup_address,
-    totalAmount: order.total_amount,
+    totalAmount: order.total_price,
     totalDistance: order.total_distance,
     status: order.status,
     vehicleType: order.vehicle_type,
@@ -96,11 +96,11 @@ async function fetchOrders(userId, userType, status, limit, offset) {
       name: driversMap[order.driver_id].full_name,
       phone: driversMap[order.driver_id].phone
     } : null,
-    drops: (order.drops || []).sort((a, b) => a.sequence_number - b.sequence_number).map(drop => ({
+    drops: (order.drops || []).sort((a, b) => (a.drop_sequence || a.sequence_number || 0) - (b.drop_sequence || b.sequence_number || 0)).map(drop => ({
       id: drop.id,
       recipientName: drop.recipient_name,
       address: drop.address,
-      phone: drop.phone,
+      phone: drop.recipient_phone || drop.phone,
       status: drop.status
     })),
     dropCount: order.drops?.length || 0
@@ -110,7 +110,13 @@ async function fetchOrders(userId, userType, status, limit, offset) {
 // Get all orders - admin sees all, customers see their own (CACHED)
 router.get('/', async (req, res, next) => {
   try {
-    const { status, limit = 50, offset = 0 } = req.query;
+    // Validate and sanitize pagination parameters
+    const maxLimit = 100; // Maximum records per page
+    const defaultLimit = 50;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || defaultLimit, 1), maxLimit);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const status = req.query.status;
+    
     const userId = req.user.id;
     const userType = req.user.user_type;
 
@@ -134,9 +140,10 @@ router.get('/', async (req, res, next) => {
       success: true,
       data: formattedOrders,
       pagination: {
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        total: formattedOrders.length
+        limit,
+        offset,
+        total: formattedOrders.length,
+        hasMore: formattedOrders.length === limit // Indicates if more records exist
       },
       _meta: { cached: fromCache }
     });
@@ -150,7 +157,11 @@ router.get('/', async (req, res, next) => {
 router.get('/my/orders', async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { status, limit = 50 } = req.query;
+    // Validate and sanitize limit
+    const maxLimit = 100;
+    const defaultLimit = 50;
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || defaultLimit, 1), maxLimit);
+    const status = req.query.status;
 
     const cacheKey = cache.generateKey(CacheKeys.ORDERS, 'my', userId, status || 'all', limit);
 
@@ -163,7 +174,7 @@ router.get('/my/orders', async (req, res, next) => {
             id,
             order_number,
             pickup_address,
-            total_amount,
+            total_price,
             total_distance,
             status,
             vehicle_type,
@@ -173,8 +184,9 @@ router.get('/my/orders', async (req, res, next) => {
               id,
               recipient_name,
               address,
-              phone,
-              status
+              recipient_phone,
+              status,
+              drop_sequence
             )
           `)
           .eq('customer_id', userId)

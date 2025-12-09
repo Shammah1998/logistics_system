@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getApiUrl } from '../config/api';
 
 const OrderTracking = () => {
   const { orderId } = useParams();
@@ -12,18 +13,40 @@ const OrderTracking = () => {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (!token) {
+          navigate('/login');
+          return;
+        }
 
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*, drops(*), drivers(*)')
-          .eq('id', orderId)
-          .eq('customer_id', user.id)
-          .single();
+        const response = await fetch(`${getApiUrl()}/orders/${orderId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-        if (error) throw error;
-        setOrder(data);
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          // Backend API returns formatted order data
+          const orderData = data.data;
+          setOrder({
+            ...orderData,
+            // Ensure all expected fields are present
+            order_number: orderData.order_number || orderData.orderNumber,
+            total_amount: orderData.total_amount || orderData.totalAmount,
+            created_at: orderData.created_at || orderData.createdAt,
+            assigned_at: orderData.assigned_at || orderData.assignedAt,
+            picked_up_at: orderData.picked_up_at || orderData.pickedUpAt,
+            delivered_at: orderData.delivered_at || orderData.deliveredAt,
+            drops: orderData.drops || [],
+            drivers: orderData.driver ? [orderData.driver] : []
+          });
+        } else {
+          console.error('Error fetching order:', data.message || 'Order not found');
+          setOrder(null);
+        }
       } catch (error) {
         console.error('Error fetching order:', error);
       } finally {
@@ -34,7 +57,7 @@ const OrderTracking = () => {
     if (orderId) {
       fetchOrder();
     }
-  }, [orderId, supabase]);
+  }, [orderId, supabase, navigate]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';

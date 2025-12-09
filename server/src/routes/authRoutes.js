@@ -139,7 +139,7 @@ router.post('/drivers/login', async (req, res, next) => {
       email: driverEmail,
       password: password, // PIN is used as password
     });
-    
+
     authData = authResult.data;
     authError = authResult.error;
     

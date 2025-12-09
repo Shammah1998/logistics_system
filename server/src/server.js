@@ -44,11 +44,36 @@ if (missingEnvVars.length > 0) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Supabase client
+// Initialize Supabase client with optimized configuration
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Configure Supabase client for optimal performance
+// Note: Supabase uses HTTP/REST API, connection pooling is handled by Supabase infrastructure
+// But we can optimize client behavior
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: {
+    schema: 'public',
+  },
+  auth: {
+    persistSession: false, // Backend doesn't need session persistence
+    autoRefreshToken: false, // Backend doesn't need token refresh
+  },
+  global: {
+    // Optimize fetch behavior
+    fetch: (url, options = {}) => {
+      return fetch(url, {
+        ...options,
+        // Add connection reuse headers
+        headers: {
+          ...options.headers,
+          'Connection': 'keep-alive',
+          'Keep-Alive': 'timeout=5, max=1000',
+        },
+      });
+    },
+  },
+});
 
 // Middleware
 app.use(helmet());

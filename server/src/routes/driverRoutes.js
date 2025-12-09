@@ -10,55 +10,55 @@ const router = express.Router();
 // Helper function to fetch all drivers with their data
 async function fetchAllDrivers() {
   // Get all drivers with their user info
-  const { data: drivers, error } = await supabase
-    .from('drivers')
-    .select(`
-      id,
-      license_number,
-      vehicle_type,
-      vehicle_registration,
-      status,
-      blocked_reason,
-      created_at,
-      users!inner (
+    const { data: drivers, error } = await supabase
+      .from('drivers')
+      .select(`
         id,
-        email,
-        phone,
-        full_name,
-        user_type
-      )
-    `)
-    .order('created_at', { ascending: false });
+        license_number,
+        vehicle_type,
+        vehicle_registration,
+        status,
+        blocked_reason,
+        created_at,
+        users!inner (
+          id,
+          email,
+          phone,
+          full_name,
+          user_type
+        )
+      `)
+      .order('created_at', { ascending: false });
 
   if (error) throw error;
 
   // Get wallet balances for all drivers
-  const driverIds = drivers.map(d => d.id);
-  const { data: wallets } = await supabase
-    .from('wallets')
-    .select('driver_id, balance')
-    .in('driver_id', driverIds);
+    const driverIds = drivers.map(d => d.id);
+    const { data: wallets } = await supabase
+      .from('wallets')
+      .select('driver_id, balance')
+      .in('driver_id', driverIds);
 
-  const walletMap = {};
-  if (wallets) {
-    wallets.forEach(w => {
-      walletMap[w.driver_id] = w.balance;
-    });
-  }
+    const walletMap = {};
+    if (wallets) {
+      wallets.forEach(w => {
+        walletMap[w.driver_id] = w.balance;
+      });
+    }
 
-  // Format response
+    // Format response
   return drivers.map(driver => ({
-    id: driver.id,
-    name: driver.users?.full_name || 'Unknown',
-    phone: driver.users?.phone || '',
-    email: driver.users?.email || '',
-    status: driver.status,
-    vehicleType: driver.vehicle_type,
-    vehicleRegistration: driver.vehicle_registration,
-    licenseNumber: driver.license_number,
-    balance: walletMap[driver.id] || 0,
-    createdAt: driver.created_at
-  }));
+      id: driver.id,
+      name: driver.users?.full_name || 'Unknown',
+      phone: driver.users?.phone || '',
+      email: driver.users?.email || '',
+      status: driver.status,
+      vehicleType: driver.vehicle_type,
+      vehicleRegistration: driver.vehicle_registration,
+      licenseNumber: driver.license_number,
+      balance: walletMap[driver.id] || 0,
+      createdAt: driver.created_at
+    }));
 }
 
 // Get all drivers - admins only (CACHED)
@@ -192,7 +192,7 @@ router.post('/', authenticate, requireUserType('admin'), async (req, res, next) 
       });
       // Try to clean up auth user if it was created
       try {
-        await supabase.auth.admin.deleteUser(userId);
+      await supabase.auth.admin.deleteUser(userId);
       } catch (cleanupError) {
         logger.warn('Failed to cleanup auth user', { error: cleanupError.message });
       }
@@ -244,16 +244,16 @@ router.post('/', authenticate, requireUserType('admin'), async (req, res, next) 
 
     // Store driver credentials (non-critical, log but don't fail)
     try {
-      const pinHash = await bcrypt.hash(pin, 10);
-      const { error: credError } = await supabase
-        .from('driver_credentials')
-        .insert({
-          driver_id: userId,
-          phone: cleanPhone,
-          pin_hash: pinHash
-        });
+    const pinHash = await bcrypt.hash(pin, 10);
+    const { error: credError } = await supabase
+      .from('driver_credentials')
+      .insert({
+        driver_id: userId,
+        phone: cleanPhone,
+        pin_hash: pinHash
+      });
 
-      if (credError) {
+    if (credError) {
         logger.warn('Error storing driver credentials (non-critical)', { 
           error: credError.message, 
           driverId: userId 
@@ -436,45 +436,45 @@ router.get('/me/profile', authenticate, async (req, res, next) => {
     const { data, fromCache } = await cache.getOrSet(
       cacheKey,
       async () => {
-        // Get user info
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('id, email, phone, full_name')
-          .eq('id', driverId)
-          .single();
+    // Get user info
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, email, phone, full_name')
+      .eq('id', driverId)
+      .single();
 
-        if (userError || !userData) {
+    if (userError || !userData) {
           throw new Error('User not found');
-        }
+    }
 
         // Get driver info and wallet in parallel
         const [driverResult, walletResult] = await Promise.all([
           supabase
-            .from('drivers')
-            .select('vehicle_type, vehicle_registration, license_number, status')
-            .eq('id', driverId)
+      .from('drivers')
+      .select('vehicle_type, vehicle_registration, license_number, status')
+      .eq('id', driverId)
             .single(),
           supabase
-            .from('wallets')
-            .select('balance, pending_balance, total_earned')
-            .eq('driver_id', driverId)
+      .from('wallets')
+      .select('balance, pending_balance, total_earned')
+      .eq('driver_id', driverId)
             .single()
         ]);
 
         return {
-          id: userData.id,
-          email: userData.email,
-          phone: userData.phone,
-          fullName: userData.full_name,
+        id: userData.id,
+        email: userData.email,
+        phone: userData.phone,
+        fullName: userData.full_name,
           vehicleType: driverResult.data?.vehicle_type,
           vehicleRegistration: driverResult.data?.vehicle_registration,
           licenseNumber: driverResult.data?.license_number,
           status: driverResult.data?.status,
-          wallet: {
+        wallet: {
             balance: walletResult.data?.balance || 0,
             pendingBalance: walletResult.data?.pending_balance || 0,
             totalEarned: walletResult.data?.total_earned || 0
-          }
+        }
         };
       },
       CacheTTL.USER_PROFILE
@@ -507,27 +507,27 @@ router.get('/me/orders', authenticate, async (req, res, next) => {
     const { data: orders, fromCache } = await cache.getOrSet(
       cacheKey,
       async () => {
-        let query = supabase
-          .from('orders')
-          .select(`
-            id,
-            pickup_address,
-            total_amount,
-            status,
-            created_at,
-            drops (
-              id,
-              recipient_name,
-              address,
-              status
-            )
-          `)
-          .eq('driver_id', driverId)
-          .order('created_at', { ascending: false });
+    let query = supabase
+      .from('orders')
+      .select(`
+        id,
+        pickup_address,
+        total_price,
+        status,
+        created_at,
+        drops (
+          id,
+          recipient_name,
+          address,
+          status
+        )
+      `)
+      .eq('driver_id', driverId)
+      .order('created_at', { ascending: false });
 
-        if (status) {
-          query = query.eq('status', status);
-        }
+    if (status) {
+      query = query.eq('status', status);
+    }
 
         const { data, error } = await query;
         if (error) throw error;
@@ -556,26 +556,26 @@ router.get('/me/wallet', authenticate, async (req, res, next) => {
     const { data, fromCache } = await cache.getOrSet(
       cacheKey,
       async () => {
-        // Get wallet
-        const { data: wallet } = await supabase
-          .from('wallets')
+    // Get wallet
+    const { data: wallet } = await supabase
+      .from('wallets')
           .select('id, balance, pending_balance, total_earned')
-          .eq('driver_id', driverId)
-          .single();
+      .eq('driver_id', driverId)
+      .single();
 
-        // Get recent transactions
-        const { data: transactions } = await supabase
-          .from('transactions')
-          .select('id, amount, type, description, status, created_at')
-          .eq('wallet_id', wallet?.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
+    // Get recent transactions
+    const { data: transactions } = await supabase
+      .from('transactions')
+      .select('id, amount, type, description, status, created_at')
+      .eq('wallet_id', wallet?.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
         return {
-          balance: wallet?.balance || 0,
-          pendingBalance: wallet?.pending_balance || 0,
-          totalEarned: wallet?.total_earned || 0,
-          transactions: transactions || []
+        balance: wallet?.balance || 0,
+        pendingBalance: wallet?.pending_balance || 0,
+        totalEarned: wallet?.total_earned || 0,
+        transactions: transactions || []
         };
       },
       CacheTTL.WALLET
