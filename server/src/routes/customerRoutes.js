@@ -50,10 +50,10 @@ async function fetchCustomersWithStats() {
     });
   }
 
-  // Format response
+  // Format response - handle missing columns gracefully
   return customers.map(customer => ({
     id: customer.id,
-    name: customer.full_name || 'Unknown',
+    name: customer.full_name || customer.email || 'Unknown',
     email: customer.email || '',
     phone: customer.phone || '',
     orderCount: statsMap[customer.id]?.orderCount || 0,

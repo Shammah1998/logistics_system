@@ -46,10 +46,10 @@ async function fetchAllDrivers() {
       });
     }
 
-    // Format response
+    // Format response - handle missing columns gracefully
   return drivers.map(driver => ({
       id: driver.id,
-      name: driver.users?.full_name || 'Unknown',
+      name: driver.users?.full_name || driver.users?.email || 'Unknown',
       phone: driver.users?.phone || '',
       email: driver.users?.email || '',
       status: driver.status,

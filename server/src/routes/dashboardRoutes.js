@@ -186,8 +186,8 @@ router.get('/activity', authenticate, requireUserType('admin'), async (req, res,
           id: order.id,
           type: 'order',
           description: `New order ${order.order_number || order.id.slice(0, 8)} - ${order.status}`,
-          amount: order.total_price,
-          customer: order.users?.full_name || 'Unknown',
+          amount: order.total_price || 0,
+          customer: order.users?.full_name || order.users?.email || 'Unknown',
           timestamp: order.created_at
         }));
       },

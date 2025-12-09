@@ -12,6 +12,7 @@ router.use(authenticate);
 
 // Helper function to fetch and format orders
 async function fetchOrders(userId, userType, status, limit, offset) {
+  // Use both total_distance and total_distance_km for compatibility
   let query = supabase
     .from('orders')
     .select(`
@@ -20,12 +21,14 @@ async function fetchOrders(userId, userType, status, limit, offset) {
       pickup_address,
       total_price,
       total_distance,
+      total_distance_km,
       status,
       vehicle_type,
       created_at,
       customer_id,
       driver_id,
       users!customer_id (
+        id,
         full_name,
         phone,
         email
@@ -75,32 +78,32 @@ async function fetchOrders(userId, userType, status, limit, offset) {
     }
   }
 
-  // Format response
+  // Format response - handle missing columns gracefully
   return (orders || []).map(order => ({
     id: order.id,
     orderNumber: order.order_number || order.id.slice(0, 8).toUpperCase(),
     pickupAddress: order.pickup_address,
-    totalAmount: order.total_price,
-    totalDistance: order.total_distance,
+    totalAmount: order.total_price || 0,
+    totalDistance: order.total_distance || order.total_distance_km || 0,
     status: order.status,
     vehicleType: order.vehicle_type,
     createdAt: order.created_at,
     customer: order.users ? {
       id: order.customer_id,
-      name: order.users.full_name,
-      phone: order.users.phone,
-      email: order.users.email
+      name: order.users.full_name || order.users.email || 'Unknown',
+      phone: order.users.phone || '',
+      email: order.users.email || ''
     } : null,
     driver: order.driver_id && driversMap[order.driver_id] ? {
       id: order.driver_id,
-      name: driversMap[order.driver_id].full_name,
-      phone: driversMap[order.driver_id].phone
+      name: driversMap[order.driver_id].full_name || driversMap[order.driver_id].email || 'Unknown',
+      phone: driversMap[order.driver_id].phone || ''
     } : null,
     drops: (order.drops || []).sort((a, b) => (a.drop_sequence || a.sequence_number || 0) - (b.drop_sequence || b.sequence_number || 0)).map(drop => ({
       id: drop.id,
-      recipientName: drop.recipient_name,
-      address: drop.address,
-      phone: drop.recipient_phone || drop.phone,
+      recipientName: drop.recipient_name || '',
+      address: drop.address || '',
+      phone: drop.recipient_phone || drop.phone || '',
       status: drop.status
     })),
     dropCount: order.drops?.length || 0
@@ -176,6 +179,7 @@ router.get('/my/orders', async (req, res, next) => {
             pickup_address,
             total_price,
             total_distance,
+            total_distance_km,
             status,
             vehicle_type,
             created_at,
