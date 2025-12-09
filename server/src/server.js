@@ -49,8 +49,7 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Configure Supabase client for optimal performance
-// Note: Supabase uses HTTP/REST API, connection pooling is handled by Supabase infrastructure
-// But we can optimize client behavior
+// Using SERVICE_ROLE_KEY to bypass RLS policies
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   db: {
     schema: 'public',
@@ -60,6 +59,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: false, // Backend doesn't need token refresh
   },
   global: {
+    headers: {
+      'x-client-info': 'supabase-js/v2',
+      'Authorization': `Bearer ${supabaseKey}` // Ensure service role key is used
+    },
     // Optimize fetch behavior
     fetch: (url, options = {}) => {
       return fetch(url, {
@@ -69,10 +72,17 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
           ...options.headers,
           'Connection': 'keep-alive',
           'Keep-Alive': 'timeout=5, max=1000',
+          'x-client-info': 'supabase-js/v2',
         },
       });
     },
   },
+  realtime: {
+    headers: {
+      'x-client-info': 'supabase-js/v2',
+      'Authorization': `Bearer ${supabaseKey}` // Service role for realtime
+    }
+  }
 });
 
 // Middleware

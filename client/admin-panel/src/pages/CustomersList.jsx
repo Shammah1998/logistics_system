@@ -23,15 +23,22 @@ const CustomersList = () => {
         }
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.message || `Failed to fetch customers: ${response.status}`);
+      }
+
       const data = await response.json();
       
       if (data.success) {
         setCustomers(data.data || []);
       } else {
         console.error('Failed to fetch customers:', data.message);
+        setCustomers([]); // Set empty array on failure
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
+      setCustomers([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

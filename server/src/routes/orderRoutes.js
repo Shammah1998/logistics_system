@@ -59,7 +59,15 @@ async function fetchOrders(userId, userType, status, limit, offset) {
 
   const { data: orders, error } = await query;
 
-  if (error) throw error;
+  if (error) {
+    logger.error('Error fetching orders from database', { 
+      error: error.message, 
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    throw error;
+  }
 
   // Get driver info for orders with drivers assigned
   const driverIds = [...new Set(orders?.filter(o => o.driver_id).map(o => o.driver_id) || [])];

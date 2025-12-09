@@ -21,7 +21,15 @@ async function fetchCustomersWithStats() {
     .eq('user_type', 'customer')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) {
+    logger.error('Error fetching customers from database', { 
+      error: error.message, 
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    throw error;
+  }
 
   // Get order stats for all customers in parallel
   const customerIds = customers.map(c => c.id);

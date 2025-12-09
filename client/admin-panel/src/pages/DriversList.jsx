@@ -37,15 +37,22 @@ const DriversList = () => {
         }
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.message || `Failed to fetch drivers: ${response.status}`);
+      }
+
       const data = await response.json();
       
       if (data.success) {
         setDrivers(data.data || []);
       } else {
         console.error('Failed to fetch drivers:', data.message);
+        setDrivers([]); // Set empty array on failure
       }
     } catch (error) {
       console.error('Error fetching drivers:', error);
+      setDrivers([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -71,6 +78,11 @@ const DriversList = () => {
         },
         body: JSON.stringify(formData)
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.message || `Failed to add driver: ${response.status}`);
+      }
 
       const data = await response.json();
 
@@ -120,6 +132,11 @@ const DriversList = () => {
         body: JSON.stringify(updateData)
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.message || `Failed to update driver: ${response.status}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -151,6 +168,11 @@ const DriversList = () => {
           'Content-Type': 'application/json'
         }
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.message || `Failed to delete driver: ${response.status}`);
+      }
 
       const data = await response.json();
 

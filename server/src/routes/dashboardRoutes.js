@@ -14,6 +14,65 @@ async function fetchDashboardStats() {
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   
   // Run optimized queries in parallel
+  let results;
+  try {
+    results = await Promise.all([
+      // Total orders count (head: true = count only, no data)
+      supabase.from('orders').select('*', { count: 'exact', head: true }),
+      
+      // Orders by status - use RPC for aggregation (more efficient)
+      // Fallback: count each status separately if RPC not available
+      Promise.all([
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'assigned'),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'in_transit'),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'delivered'),
+        supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'cancelled')
+      ]),
+      
+      // Active drivers count
+      supabase.from('drivers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
+      
+      // Total drivers count
+      supabase.from('drivers').select('*', { count: 'exact', head: true }),
+      
+      // Total customers count
+      supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'customer'),
+      
+      // Total revenue - use aggregation query
+      supabase.rpc('sum_orders_revenue', { order_status: 'delivered' }).catch(() => {
+        // Fallback if RPC doesn't exist - use select with aggregation
+        return supabase.from('orders').select('total_price').eq('status', 'delivered');
+      }),
+      
+      // Monthly revenue - use aggregation query
+      supabase.rpc('sum_orders_revenue_range', { 
+        order_status: 'delivered',
+        start_date: monthStart.toISOString()
+      }).catch(() => {
+        // Fallback if RPC doesn't exist
+        return supabase.from('orders')
+          .select('total_price')
+          .eq('status', 'delivered')
+          .gte('created_at', monthStart.toISOString());
+      }),
+      
+      // Pending PODs count
+      supabase.from('pods').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+      
+      // Today's orders count
+      supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString())
+    ]);
+  } catch (error) {
+    logger.error('Error in dashboard stats queries', { 
+      error: error.message, 
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    throw error;
+  }
+
   const [
     totalOrdersResult,
     ordersByStatusResult,
@@ -24,53 +83,7 @@ async function fetchDashboardStats() {
     monthlyRevenueResult,
     pendingPODsResult,
     todayOrdersResult
-  ] = await Promise.all([
-    // Total orders count (head: true = count only, no data)
-    supabase.from('orders').select('*', { count: 'exact', head: true }),
-    
-    // Orders by status - use RPC for aggregation (more efficient)
-    // Fallback: count each status separately if RPC not available
-    Promise.all([
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'assigned'),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'in_transit'),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'delivered'),
-      supabase.from('orders').select('*', { count: 'exact', head: true }).eq('status', 'cancelled')
-    ]),
-    
-    // Active drivers count
-    supabase.from('drivers').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-    
-    // Total drivers count
-    supabase.from('drivers').select('*', { count: 'exact', head: true }),
-    
-    // Total customers count
-    supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'customer'),
-    
-    // Total revenue - use aggregation query
-    supabase.rpc('sum_orders_revenue', { order_status: 'delivered' }).catch(() => {
-      // Fallback if RPC doesn't exist - use select with aggregation
-      return supabase.from('orders').select('total_price').eq('status', 'delivered');
-    }),
-    
-    // Monthly revenue - use aggregation query
-    supabase.rpc('sum_orders_revenue_range', { 
-      order_status: 'delivered',
-      start_date: monthStart.toISOString()
-    }).catch(() => {
-      // Fallback if RPC doesn't exist
-      return supabase.from('orders')
-        .select('total_price')
-        .eq('status', 'delivered')
-        .gte('created_at', monthStart.toISOString());
-    }),
-    
-    // Pending PODs count
-    supabase.from('pods').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    
-    // Today's orders count
-    supabase.from('orders').select('*', { count: 'exact', head: true }).gte('created_at', todayStart.toISOString())
-  ]);
+  ] = results;
 
   // Process status counts from parallel queries
   const statusCounts = {

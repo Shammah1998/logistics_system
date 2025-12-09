@@ -17,7 +17,19 @@ function getSupabaseClient() {
       );
     }
 
-    supabase = createClient(supabaseUrl, supabaseKey);
+    // Configure Supabase client with service role key to bypass RLS
+    supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: {
+          'x-client-info': 'supabase-js/v2',
+          'Authorization': `Bearer ${supabaseKey}` // Service role key
+        }
+      }
+    });
   }
   return supabase;
 }

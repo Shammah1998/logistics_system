@@ -32,15 +32,22 @@ const OrdersList = () => {
         }
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.message || `Failed to fetch orders: ${response.status}`);
+      }
+
       const data = await response.json();
       
       if (data.success) {
         setOrders(data.data || []);
       } else {
         console.error('Failed to fetch orders:', data.message);
+        setOrders([]); // Set empty array on failure
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      setOrders([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

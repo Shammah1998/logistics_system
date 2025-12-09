@@ -15,6 +15,7 @@ const Dashboard = () => {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
+      setError(null);
       const token = (await supabase.auth.getSession()).data.session?.access_token;
       
       const response = await fetch(`${getApiUrl()}/dashboard/stats`, {
@@ -23,6 +24,11 @@ const Dashboard = () => {
           'Content-Type': 'application/json'
         }
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }));
+        throw new Error(errorData.message || `Failed to fetch dashboard stats: ${response.status}`);
+      }
 
       const data = await response.json();
       
@@ -33,7 +39,7 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
-      setError('Failed to load dashboard');
+      setError(err.message || 'Failed to load dashboard');
     } finally {
       setLoading(false);
     }
