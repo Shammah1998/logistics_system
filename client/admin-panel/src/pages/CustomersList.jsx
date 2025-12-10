@@ -30,14 +30,26 @@ const CustomersList = () => {
 
       const data = await response.json();
       
+      console.log('📊 Customers API Response:', {
+        success: data.success,
+        dataLength: data.data?.length || 0,
+        message: data.message,
+        cached: data._meta?.cached
+      });
+      
       if (data.success) {
         setCustomers(data.data || []);
+        if (!data.data || data.data.length === 0) {
+          console.log('ℹ️ No customers found in database (this is normal if database is empty)');
+        }
       } else {
-        console.error('Failed to fetch customers:', data.message);
+        console.error('❌ Failed to fetch customers:', data.message);
+        toast.error(data.message || 'Failed to fetch customers');
         setCustomers([]); // Set empty array on failure
       }
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error('❌ Error fetching customers:', error);
+      toast.error('Failed to load customers. Please check your connection.');
       setCustomers([]); // Set empty array on error
     } finally {
       setLoading(false);

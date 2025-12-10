@@ -39,23 +39,37 @@ async function fetchDashboardStats() {
       // Total customers count
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('user_type', 'customer'),
       
-      // Total revenue - use aggregation query
-      supabase.rpc('sum_orders_revenue', { order_status: 'delivered' }).catch(() => {
-        // Fallback if RPC doesn't exist - use select with aggregation
-        return supabase.from('orders').select('total_price').eq('status', 'delivered');
-      }),
+      // Total revenue - use aggregation query with fallback
+      (async () => {
+        try {
+          const result = await supabase.rpc('sum_orders_revenue', { order_status: 'delivered' });
+          if (result.error) throw result.error;
+          return result;
+        } catch (error) {
+          // Fallback if RPC doesn't exist - use select with aggregation
+          logger.warn('RPC sum_orders_revenue not available, using fallback');
+          return await supabase.from('orders').select('total_price').eq('status', 'delivered');
+        }
+      })(),
       
-      // Monthly revenue - use aggregation query
-      supabase.rpc('sum_orders_revenue_range', { 
-        order_status: 'delivered',
-        start_date: monthStart.toISOString()
-      }).catch(() => {
-        // Fallback if RPC doesn't exist
-        return supabase.from('orders')
-          .select('total_price')
-          .eq('status', 'delivered')
-          .gte('created_at', monthStart.toISOString());
-      }),
+      // Monthly revenue - use aggregation query with fallback
+      (async () => {
+        try {
+          const result = await supabase.rpc('sum_orders_revenue_range', { 
+            order_status: 'delivered',
+            start_date: monthStart.toISOString()
+          });
+          if (result.error) throw result.error;
+          return result;
+        } catch (error) {
+          // Fallback if RPC doesn't exist
+          logger.warn('RPC sum_orders_revenue_range not available, using fallback');
+          return await supabase.from('orders')
+            .select('total_price')
+            .eq('status', 'delivered')
+            .gte('created_at', monthStart.toISOString());
+        }
+      })(),
       
       // Pending PODs count
       supabase.from('pods').select('*', { count: 'exact', head: true }).eq('status', 'pending'),

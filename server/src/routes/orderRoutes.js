@@ -69,6 +69,8 @@ async function fetchOrders(userId, userType, status, limit, offset) {
     throw error;
   }
 
+  logger.info(`Found ${orders?.length || 0} orders for user ${userId} (type: ${userType})`);
+
   // Get driver info for orders with drivers assigned
   const driverIds = [...new Set(orders?.filter(o => o.driver_id).map(o => o.driver_id) || [])];
   let driversMap = {};
@@ -131,6 +133,8 @@ router.get('/', async (req, res, next) => {
     const userId = req.user.id;
     const userType = req.user.user_type;
 
+    logger.info('GET /api/orders', { userId, userType, status, limit, offset });
+
     // Generate cache key based on user type and filters
     const cacheKey = cache.generateKey(
       CacheKeys.ORDERS,
@@ -147,20 +151,34 @@ router.get('/', async (req, res, next) => {
       CacheTTL.ORDERS_LIST
     );
 
+    logger.info(`Returning ${formattedOrders?.length || 0} orders`, { 
+      cached: fromCache,
+      count: formattedOrders?.length || 0
+    });
+
     res.json({
       success: true,
-      data: formattedOrders,
+      data: formattedOrders || [],
       pagination: {
         limit,
         offset,
-        total: formattedOrders.length,
-        hasMore: formattedOrders.length === limit // Indicates if more records exist
+        total: formattedOrders?.length || 0,
+        hasMore: (formattedOrders?.length || 0) === limit // Indicates if more records exist
       },
       _meta: { cached: fromCache }
     });
   } catch (error) {
-    logger.error('Error in get orders', { error: error.message });
-    next(error);
+    logger.error('Error in get orders', { 
+      error: error.message,
+      stack: error.stack,
+      userId: req.user?.id,
+      userType: req.user?.user_type
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch orders',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

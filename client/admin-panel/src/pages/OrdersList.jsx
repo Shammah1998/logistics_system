@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getApiUrl } from '../config/api';
+import toast from 'react-hot-toast';
 
 const OrdersList = () => {
   const { supabase } = useAuth();
@@ -39,14 +40,26 @@ const OrdersList = () => {
 
       const data = await response.json();
       
+      console.log('📊 Orders API Response:', {
+        success: data.success,
+        dataLength: data.data?.length || 0,
+        message: data.message,
+        cached: data._meta?.cached
+      });
+      
       if (data.success) {
         setOrders(data.data || []);
+        if (!data.data || data.data.length === 0) {
+          console.log('ℹ️ No orders found in database (this is normal if database is empty)');
+        }
       } else {
-        console.error('Failed to fetch orders:', data.message);
+        console.error('❌ Failed to fetch orders:', data.message);
+        toast.error(data.message || 'Failed to fetch orders');
         setOrders([]); // Set empty array on failure
       }
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('❌ Error fetching orders:', error);
+      toast.error('Failed to load orders. Please check your connection.');
       setOrders([]); // Set empty array on error
     } finally {
       setLoading(false);

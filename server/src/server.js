@@ -61,28 +61,8 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   global: {
     headers: {
       'x-client-info': 'supabase-js/v2',
-      'Authorization': `Bearer ${supabaseKey}` // Ensure service role key is used
-    },
-    // Optimize fetch behavior
-    fetch: (url, options = {}) => {
-      return fetch(url, {
-        ...options,
-        // Add connection reuse headers
-        headers: {
-          ...options.headers,
-          'Connection': 'keep-alive',
-          'Keep-Alive': 'timeout=5, max=1000',
-          'x-client-info': 'supabase-js/v2',
-        },
-      });
     },
   },
-  realtime: {
-    headers: {
-      'x-client-info': 'supabase-js/v2',
-      'Authorization': `Bearer ${supabaseKey}` // Service role for realtime
-    }
-  }
 });
 
 // Middleware

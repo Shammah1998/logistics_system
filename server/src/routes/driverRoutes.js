@@ -9,64 +9,84 @@ const router = express.Router();
 
 // Helper function to fetch all drivers with their data
 async function fetchAllDrivers() {
-  // Get all drivers with their user info
-    const { data: drivers, error } = await supabase
-      .from('drivers')
-      .select(`
-        id,
-        license_number,
-        vehicle_type,
-        vehicle_registration,
-        status,
-        blocked_reason,
-        created_at,
-        users!inner (
-          id,
-          email,
-          phone,
-          full_name,
-          user_type
-        )
-      `)
-      .order('created_at', { ascending: false });
+  // Get all drivers first (without inner join to include all drivers)
+  logger.info('Fetching drivers from database...');
+  const { data: drivers, error: driversError } = await supabase
+    .from('drivers')
+    .select(`
+      id,
+      license_number,
+      vehicle_type,
+      vehicle_registration,
+      status,
+      blocked_reason,
+      created_at
+    `)
+    .order('created_at', { ascending: false });
 
-  if (error) {
+  if (driversError) {
     logger.error('Error fetching drivers from database', { 
-      error: error.message, 
-      code: error.code,
-      details: error.details,
-      hint: error.hint
+      error: driversError.message, 
+      code: driversError.code,
+      details: driversError.details,
+      hint: driversError.hint
     });
-    throw error;
+    throw driversError;
+  }
+
+  logger.info(`Found ${drivers?.length || 0} drivers in database`);
+
+  // Get user info for all drivers (LEFT join - include drivers even without user records)
+  const driverIds = drivers?.map(d => d.id) || [];
+  let usersMap = {};
+  
+  if (driverIds.length > 0) {
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('id, email, phone, full_name, user_type')
+      .in('id', driverIds)
+      .eq('user_type', 'driver');
+    
+    if (usersError) {
+      logger.warn('Error fetching user info for drivers', { error: usersError.message });
+    } else if (users) {
+      users.forEach(u => {
+        usersMap[u.id] = u;
+      });
+    }
   }
 
   // Get wallet balances for all drivers
-    const driverIds = drivers.map(d => d.id);
-    const { data: wallets } = await supabase
-      .from('wallets')
-      .select('driver_id, balance')
-      .in('driver_id', driverIds);
+  const { data: wallets } = await supabase
+    .from('wallets')
+    .select('driver_id, balance')
+    .in('driver_id', driverIds);
 
-    const walletMap = {};
-    if (wallets) {
-      wallets.forEach(w => {
-        walletMap[w.driver_id] = w.balance;
-      });
-    }
+  const walletMap = {};
+  if (wallets) {
+    wallets.forEach(w => {
+      walletMap[w.driver_id] = w.balance;
+    });
+  }
 
-    // Format response - handle missing columns gracefully
-  return drivers.map(driver => ({
+  // Format response - handle missing columns gracefully
+  // Include ALL drivers, even if they don't have user records
+  return (drivers || []).map(driver => {
+    const userInfo = usersMap[driver.id];
+    return {
       id: driver.id,
-      name: driver.users?.full_name || driver.users?.email || 'Unknown',
-      phone: driver.users?.phone || '',
-      email: driver.users?.email || '',
+      name: userInfo?.full_name || userInfo?.email || 'Unknown',
+      phone: userInfo?.phone || '',
+      email: userInfo?.email || '',
       status: driver.status,
       vehicleType: driver.vehicle_type,
       vehicleRegistration: driver.vehicle_registration,
       licenseNumber: driver.license_number,
       balance: walletMap[driver.id] || 0,
-      createdAt: driver.created_at
-    }));
+      createdAt: driver.created_at,
+      hasUserRecord: !!userInfo // Flag to indicate if user record exists
+    };
+  });
 }
 
 // Get all drivers - admins only (CACHED)
@@ -86,8 +106,15 @@ router.get('/', authenticate, requireUserType('admin'), async (req, res, next) =
       _meta: { cached: fromCache }
     });
   } catch (error) {
-    logger.error('Error in get drivers', { error: error.message });
-    next(error);
+    logger.error('Error in get drivers', { 
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch drivers',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

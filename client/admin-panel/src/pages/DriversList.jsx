@@ -44,14 +44,26 @@ const DriversList = () => {
 
       const data = await response.json();
       
+      console.log('📊 Drivers API Response:', {
+        success: data.success,
+        dataLength: data.data?.length || 0,
+        message: data.message,
+        cached: data._meta?.cached
+      });
+      
       if (data.success) {
         setDrivers(data.data || []);
+        if (!data.data || data.data.length === 0) {
+          console.log('ℹ️ No drivers found in database (this is normal if database is empty)');
+        }
       } else {
-        console.error('Failed to fetch drivers:', data.message);
+        console.error('❌ Failed to fetch drivers:', data.message);
+        toast.error(data.message || 'Failed to fetch drivers');
         setDrivers([]); // Set empty array on failure
       }
     } catch (error) {
-      console.error('Error fetching drivers:', error);
+      console.error('❌ Error fetching drivers:', error);
+      toast.error('Failed to load drivers. Please check your connection.');
       setDrivers([]); // Set empty array on error
     } finally {
       setLoading(false);

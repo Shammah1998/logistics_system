@@ -15,26 +15,44 @@ function validateEnvVars() {
     if (!supabaseAnonKey) missingVars.push('VITE_SUPABASE_ANON_KEY');
     
     console.error('❌ Missing required environment variables:', missingVars.join(', '));
-    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+    console.error('💡 Create a .env file in client/admin-panel/ with:');
+    console.error('   VITE_SUPABASE_URL=your-supabase-url');
+    console.error('   VITE_SUPABASE_ANON_KEY=your-anon-key');
+    
+    // Don't throw - let it fail gracefully so user can see the error
+    // The timeout will clear the loading state
+    return false;
   }
+  return true;
 }
 
 // Create Supabase client - SIMPLE, no custom fetch or timeouts
 let supabase = null;
 function getSupabaseClient() {
-  validateEnvVars();
+  if (!validateEnvVars()) {
+    // Return a mock client that will fail gracefully
+    console.warn('⚠️ Supabase client not initialized due to missing env vars');
+    return null;
+  }
+  
   if (!supabase) {
     console.log('🔧 Creating Supabase client with URL:', supabaseUrl);
     
-    supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false,
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-        storageKey: 'sb-admin-auth-token', // Unique key for admin panel
-      }
-    });
+    try {
+      supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: false,
+          storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+          storageKey: 'sb-admin-auth-token', // Unique key for admin panel
+        }
+      });
+      console.log('✅ Supabase client created successfully');
+    } catch (error) {
+      console.error('❌ Failed to create Supabase client:', error.message);
+      return null;
+    }
   }
   return supabase;
 }
@@ -65,15 +83,59 @@ export const AuthProvider = ({ children }) => {
 
     let isMounted = true;
     let authStateChangeHandled = false;
+    let timeoutId = null;
+
+    // Safety timeout: Always clear loading after 3 seconds (more aggressive)
+    timeoutId = setTimeout(() => {
+      console.warn('⚠️ Auth initialization timeout - forcing ready state');
+      console.log('🔧 Setting loading=false, authReady=true');
+      console.log('📊 Current state before timeout:', { isMounted, loading, authReady });
+      
+      if (isMounted) {
+        // Force update using functional setState
+        setLoading(prev => {
+          console.log('🔄 setLoading called, previous value:', prev);
+          return false;
+        });
+        setAuthReady(prev => {
+          console.log('🔄 setAuthReady called, previous value:', prev);
+          return true;
+        });
+        console.log('✅ Loading state cleared by timeout');
+      } else {
+        console.warn('⚠️ Component unmounted, timeout ignored');
+      }
+    }, 3000); // Reduced to 3 seconds
+    
+    console.log('✅ Timeout registered, will fire in 3 seconds');
 
     const initAuth = async () => {
       console.log('📡 Initializing auth...');
+      console.log('⏱️ Timeout set for 5 seconds');
       
       try {
         const client = getSupabaseClient();
         
-        // Get current session - no timeout, let it complete naturally
-        const { data: { session }, error } = await client.auth.getSession();
+        if (!client) {
+          console.error('❌ Supabase client not available - check environment variables');
+          setUser(null);
+          setUserType(null);
+          return; // Exit early, timeout will clear loading state
+        }
+        
+        // Get current session with timeout
+        const sessionPromise = client.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session check timeout')), 3000)
+        );
+        
+        const { data: { session }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]).catch(err => {
+          console.warn('Session check failed or timed out:', err.message);
+          return { data: { session: null }, error: err };
+        });
         
         if (!isMounted) return;
 
@@ -85,13 +147,25 @@ export const AuthProvider = ({ children }) => {
           console.log('📡 Found existing session for:', session.user.email);
           setUser(session.user);
           
-          // Fetch user type
+          // Fetch user type with timeout
           try {
-            const { data: userData, error: userError } = await client
+            const userTypePromise = client
               .from('users')
               .select('user_type')
               .eq('id', session.user.id)
               .single();
+            
+            const userTypeTimeout = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('User type fetch timeout')), 2000)
+            );
+            
+            const { data: userData, error: userError } = await Promise.race([
+              userTypePromise,
+              userTypeTimeout
+            ]).catch(err => {
+              console.warn('User type fetch failed or timed out:', err.message);
+              return { data: null, error: err };
+            });
             
             if (isMounted) {
               if (userError) {
@@ -119,7 +193,13 @@ export const AuthProvider = ({ children }) => {
           setUserType(null);
         }
       } finally {
-        // Only set ready if auth state change hasn't already handled it
+        // Clear timeout if we completed early
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        
+        // Always set ready if auth state change hasn't already handled it
         if (isMounted && !authStateChangeHandled) {
           setLoading(false);
           setAuthReady(true);
@@ -130,7 +210,23 @@ export const AuthProvider = ({ children }) => {
 
     // Set up auth state change listener FIRST (before initAuth)
     // This ensures we catch SIGNED_IN events immediately
-    const { data: { subscription } } = getSupabaseClient().auth.onAuthStateChange(
+    let subscription = null;
+    try {
+      const clientForListener = getSupabaseClient();
+      if (!clientForListener) {
+        // If client is not available, clear loading immediately and exit
+        console.error('❌ Cannot set up auth listener - Supabase client not available');
+        setLoading(false);
+        setAuthReady(true);
+        return () => {
+          isMounted = false;
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+        };
+      }
+      
+      const { data } = clientForListener.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔄 Auth state changed:', event);
         
@@ -177,12 +273,20 @@ export const AuthProvider = ({ children }) => {
         }
       }
     );
+      subscription = data.subscription;
+    } catch (error) {
+      console.error('❌ Failed to set up auth listener:', error);
+      // Continue anyway - timeout will handle it
+    }
 
     // Start auth initialization AFTER setting up listener
     initAuth();
 
     return () => {
       isMounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       subscription?.unsubscribe();
     };
   }, []);
@@ -279,6 +383,16 @@ export const AuthProvider = ({ children }) => {
     setUserType(null);
     navigate('/login');
   };
+
+  // Debug: Log state changes
+  useEffect(() => {
+    console.log('🔄 Auth state changed:', { 
+      hasUser: !!user, 
+      userType, 
+      loading, 
+      authReady 
+    });
+  }, [user, userType, loading, authReady]);
 
   const value = {
     user,

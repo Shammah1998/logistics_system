@@ -41,154 +41,135 @@ router.post('/drivers/login', async (req, res, next) => {
       });
     }
 
-    // Normalize phone number
-    const normalizedPhone = normalizePhone(phone);
+    // Normalize phone number - handle input with or without country code
+    let inputPhone = phone.trim();
+    
+    // If phone doesn't start with +, add country code (default to +254 for Kenya)
+    if (!inputPhone.startsWith('+')) {
+      if (inputPhone.startsWith('0')) {
+        inputPhone = '+254' + inputPhone.substring(1);
+      } else {
+        inputPhone = '+254' + inputPhone;
+      }
+    }
+    
+    const normalizedPhone = normalizePhone(inputPhone);
+    const expectedEmail = generateDriverEmail(normalizedPhone);
+    
     logger.info('Driver login attempt', { 
       originalPhone: phone, 
+      inputPhone: inputPhone,
       normalizedPhone: normalizedPhone,
+      expectedEmail: expectedEmail,
       hasPassword: !!password 
     });
 
-    // Get all drivers to help with debugging
-    const { data: allDrivers } = await supabase
-      .from('users')
-      .select('phone, full_name, email')
-      .eq('user_type', 'driver');
+    // STRATEGY: Try to authenticate directly with Supabase Auth first
+    // This is the most reliable way since auth.users is the source of truth
+    logger.info('Attempting direct Supabase auth', { email: expectedEmail });
     
-    logger.info('Available driver phones', { 
-      phones: allDrivers?.map(d => ({ phone: d.phone, name: d.full_name })) 
+    const authResult = await supabase.auth.signInWithPassword({
+      email: expectedEmail,
+      password: password,
     });
 
-    // Try multiple phone formats to find the user
-    let userData = null;
-    let userError = null;
-    
-    // Try different variations of the phone number
-    const phoneVariations = [
-      normalizedPhone, // With + as normalized
-      normalizedPhone.startsWith('+') ? normalizedPhone.substring(1) : '+' + normalizedPhone, // Opposite
-    ];
-    
-    // Also try the original if different
-    if (phone !== normalizedPhone) {
-      phoneVariations.push(phone);
+    if (authResult.error) {
+      logger.warn('Direct auth failed', { 
+        error: authResult.error.message,
+        email: expectedEmail 
+      });
+      
+      // Get available driver phones for error message
+      const { data: allDrivers } = await supabase
+        .from('users')
+        .select('phone')
+        .eq('user_type', 'driver');
+      
+      const availablePhones = allDrivers?.map(d => d.phone).filter(Boolean) || [];
+      
+      // If auth fails, it's either wrong phone or wrong PIN
+      let errorMessage = 'Invalid phone number or PIN.';
+      if (authResult.error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid PIN. Please check your PIN and try again.';
+      }
+      if (availablePhones.length > 0) {
+        errorMessage += ` Available driver phones: ${availablePhones.join(', ')}`;
+      }
+      
+      return res.status(401).json({
+        success: false,
+        message: errorMessage
+      });
     }
 
-    for (const phoneVar of phoneVariations) {
-      const result = await supabase
+    const authUser = authResult.data.user;
+    const authSession = authResult.data.session;
+    
+    logger.info('Auth successful, checking public.users', { userId: authUser.id });
+
+    // Auth succeeded! Now get or create the public.users record
+    let { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, email, user_type, full_name, phone')
+      .eq('id', authUser.id)
+      .single();
+
+    // If user doesn't exist in public.users, create it
+    if (userError || !userData) {
+      logger.info('Creating missing public.users record', { 
+        userId: authUser.id,
+        email: expectedEmail,
+        phone: normalizedPhone
+      });
+      
+      const { data: newUser, error: createError } = await supabase
         .from('users')
-        .select('id, email, user_type, full_name, phone')
-        .eq('phone', phoneVar)
-        .eq('user_type', 'driver')
+        .insert({
+          id: authUser.id,
+          email: expectedEmail,
+          phone: normalizedPhone,
+          full_name: authUser.user_metadata?.full_name || 'Driver',
+          user_type: 'driver'
+        })
+        .select()
         .single();
       
-      if (!result.error && result.data) {
-        userData = result.data;
-        logger.info('Found driver with phone variation', { tried: phoneVar, found: userData.phone });
-        break;
+      if (createError) {
+        logger.error('Failed to create public.users record', { error: createError.message });
+        // Continue anyway - we have auth data
+        userData = {
+          id: authUser.id,
+          email: expectedEmail,
+          phone: normalizedPhone,
+          full_name: authUser.user_metadata?.full_name || 'Driver',
+          user_type: 'driver'
+        };
+      } else {
+        userData = newUser;
+        logger.info('Created public.users record', { userId: userData.id });
+        
+        // Invalidate drivers cache since we added a new user record
+        try {
+          const { cache, CacheKeys } = await import('../services/cacheService.js');
+          await cache.invalidateEntity(CacheKeys.DRIVERS);
+          logger.info('Invalidated drivers cache after creating user record');
+        } catch (cacheError) {
+          logger.warn('Failed to invalidate cache', { error: cacheError.message });
+        }
+      }
+    } else {
+      // Update phone if it's missing or different
+      if (!userData.phone || userData.phone !== normalizedPhone) {
+        logger.info('Updating user phone', { oldPhone: userData.phone, newPhone: normalizedPhone });
+        await supabase
+          .from('users')
+          .update({ phone: normalizedPhone })
+          .eq('id', authUser.id);
+        userData.phone = normalizedPhone;
       }
     }
 
-    if (!userData) {
-      logger.warn('Driver not found by phone', { 
-        originalPhone: phone,
-        normalizedPhone: normalizedPhone,
-        triedVariations: phoneVariations,
-        availablePhones: allDrivers?.map(d => d.phone)
-      });
-      
-      return res.status(401).json({
-        success: false,
-        message: `Invalid phone number or PIN. Available driver phones: ${allDrivers?.map(d => d.phone).join(', ') || 'none'}`
-      });
-    }
-
-    // Get the driver's email for Supabase auth
-    let driverEmail = userData.email;
-    
-    // If email is missing or doesn't match expected format, generate it
-    if (!driverEmail || !driverEmail.includes('@drivers.xobo.co.ke')) {
-      driverEmail = generateDriverEmail(userData.phone);
-      logger.warn('Email mismatch, using generated email', { 
-        storedEmail: userData.email, 
-        generatedEmail: driverEmail,
-        phone: userData.phone 
-      });
-    }
-    
-    logger.info('Found driver', { 
-      userId: userData.id, 
-      email: driverEmail, 
-      phone: userData.phone,
-      storedEmail: userData.email 
-    });
-
-    // Authenticate with Supabase using email + PIN as password
-    logger.info('Attempting Supabase auth', { 
-      email: driverEmail, 
-      phone: userData.phone,
-      hasPassword: !!password,
-      passwordLength: password?.length 
-    });
-    
-    let authData = null;
-    let authError = null;
-    
-    // Try with stored email first
-    const authResult = await supabase.auth.signInWithPassword({
-      email: driverEmail,
-      password: password, // PIN is used as password
-    });
-
-    authData = authResult.data;
-    authError = authResult.error;
-    
-    // If auth fails and email was generated, try with stored email (if different)
-    if (authError && driverEmail !== userData.email && userData.email) {
-      logger.info('Retrying with stored email', { storedEmail: userData.email });
-      const retryResult = await supabase.auth.signInWithPassword({
-        email: userData.email,
-        password: password,
-      });
-      
-      if (!retryResult.error && retryResult.data) {
-        authData = retryResult.data;
-        authError = null;
-        driverEmail = userData.email; // Use the working email
-      }
-    }
-
-    if (authError || !authData?.user) {
-      logger.warn('Driver auth failed', { 
-        phone: normalizedPhone, 
-        email: driverEmail,
-        storedEmail: userData.email,
-        error: authError?.message,
-        errorCode: authError?.status,
-        errorDetails: authError
-      });
-      
-      // Provide more helpful error message
-      let errorMessage = 'Invalid phone number or PIN';
-      if (authError?.message?.includes('Invalid login credentials')) {
-        errorMessage = 'Invalid PIN. Please check your PIN and try again.';
-      } else if (authError?.message?.includes('Email not confirmed')) {
-        errorMessage = 'Account not activated. Please contact support.';
-      }
-      
-      return res.status(401).json({
-        success: false,
-        message: errorMessage,
-        debug: process.env.NODE_ENV === 'development' ? {
-          email: driverEmail,
-          storedEmail: userData.email,
-          phone: userData.phone,
-          error: authError?.message
-        } : undefined
-      });
-    }
-
-    // Get driver details
+    // Get driver details (we already authenticated above)
     const { data: driverData } = await supabase
       .from('drivers')
       .select('status, vehicle_type')
@@ -224,8 +205,8 @@ router.post('/drivers/login', async (req, res, next) => {
           vehicleType: driverData?.vehicle_type,
           status: driverData?.status
         },
-        token: authData.session.access_token,
-        refreshToken: authData.session.refresh_token,
+        token: authSession.access_token,
+        refreshToken: authSession.refresh_token,
       }
     });
   } catch (error) {

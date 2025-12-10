@@ -1,10 +1,23 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { user, userType, loading, authReady } = useAuth();
+  const [forceReady, setForceReady] = useState(false);
+
+  // Emergency timeout: Force ready after 6 seconds if still loading
+  useEffect(() => {
+    const emergencyTimeout = setTimeout(() => {
+      if (loading || !authReady) {
+        console.warn('🚨 EMERGENCY: Forcing route to render after 6 seconds');
+        setForceReady(true);
+      }
+    }, 6000);
+
+    return () => clearTimeout(emergencyTimeout);
+  }, [loading, authReady]);
 
   useEffect(() => {
     if (authReady && requireAdmin && user && userType !== 'admin') {
@@ -12,8 +25,8 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     }
   }, [authReady, requireAdmin, user, userType]);
 
-  // Show loading while auth is initializing
-  if (loading || !authReady) {
+  // Show loading while auth is initializing (unless force ready)
+  if ((loading || !authReady) && !forceReady) {
     return (
       <div style={{ 
         display: 'flex', 

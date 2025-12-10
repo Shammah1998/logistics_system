@@ -156,10 +156,10 @@ const Login = () => {
 
                 <button
                   type="submit"
-                  disabled={loading || !authReady}
+                  disabled={loading}
                   className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                 >
-                  {!authReady ? 'Initializing...' : loading ? 'Signing in...' : 'Sign in'}
+                  {loading ? 'Signing in...' : 'Sign in'}
                 </button>
               </form>
               

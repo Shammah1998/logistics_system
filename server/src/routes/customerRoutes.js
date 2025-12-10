@@ -8,6 +8,7 @@ const router = express.Router();
 
 // Helper function to fetch customers with stats
 async function fetchCustomersWithStats() {
+  logger.info('Fetching customers from database...');
   const { data: customers, error } = await supabase
     .from('users')
     .select(`
@@ -30,6 +31,8 @@ async function fetchCustomersWithStats() {
     });
     throw error;
   }
+
+  logger.info(`Found ${customers?.length || 0} customers in database`);
 
   // Get order stats for all customers in parallel
   const customerIds = customers.map(c => c.id);
@@ -75,6 +78,7 @@ async function fetchCustomersWithStats() {
 // Get all customers - admins only (CACHED)
 router.get('/', authenticate, requireUserType('admin'), async (req, res, next) => {
   try {
+    logger.info('GET /api/customers - Admin request', { adminId: req.user.id });
     const cacheKey = cache.generateKey(CacheKeys.CUSTOMERS, 'list');
 
     const { data: formattedCustomers, fromCache } = await cache.getOrSet(
@@ -83,14 +87,26 @@ router.get('/', authenticate, requireUserType('admin'), async (req, res, next) =
       CacheTTL.CUSTOMERS_LIST
     );
 
+    logger.info(`Returning ${formattedCustomers?.length || 0} customers to admin`, { 
+      cached: fromCache,
+      count: formattedCustomers?.length || 0
+    });
+
     res.json({
       success: true,
-      data: formattedCustomers,
+      data: formattedCustomers || [],
       _meta: { cached: fromCache }
     });
   } catch (error) {
-    logger.error('Error in get customers', { error: error.message });
-    next(error);
+    logger.error('Error in get customers', { 
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customers',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
