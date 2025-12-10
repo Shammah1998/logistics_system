@@ -71,7 +71,7 @@ export const authenticate = async (req, res, next) => {
     req.user = {
       id: user.id,
       email: user.email,
-      userType: userData.user_type
+      user_type: userData.user_type  // Fixed: Use snake_case to match database and routes
     };
 
     next();
@@ -92,7 +92,7 @@ export const requireUserType = (...allowedTypes) => {
       });
     }
 
-    if (!allowedTypes.includes(req.user.userType)) {
+    if (!allowedTypes.includes(req.user.user_type)) {  // Fixed: Use snake_case to match database
       return res.status(403).json({
         success: false,
         message: 'Insufficient permissions'
