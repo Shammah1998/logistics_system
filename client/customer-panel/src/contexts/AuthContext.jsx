@@ -5,7 +5,19 @@ import { useNavigate } from 'react-router-dom';
 // Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const customerSiteUrl = import.meta.env.VITE_CUSTOMER_PANEL_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+
+// Get customer panel URL - use environment variable in production, fallback to current origin in development
+const getCustomerPanelUrl = () => {
+  // In production, use the environment variable
+  if (import.meta.env.VITE_CUSTOMER_PANEL_URL) {
+    return import.meta.env.VITE_CUSTOMER_PANEL_URL;
+  }
+  // In development, use current origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return '';
+};
 
 // Validate required environment variables (lazy check)
 function validateEnvVars() {
@@ -111,7 +123,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signUp = async ({ email, password, fullName, phone }) => {
-    const redirectTo = `${customerSiteUrl || ''}/login`;
+    // Get the correct panel URL (production or development)
+    const panelUrl = getCustomerPanelUrl();
+    const redirectTo = `${panelUrl}/login`;
+
+    console.log('📧 Email confirmation will redirect to:', redirectTo);
 
     const { data, error } = await getSupabaseClient().auth.signUp({
       email,
