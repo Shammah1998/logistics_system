@@ -68,3 +68,5 @@ You also need to configure Supabase to allow these redirect URLs:
 3. ⚠️ Configure Supabase redirect URLs in dashboard
 4. ✅ Test email confirmation flow
 
+
+

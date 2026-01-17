@@ -47,6 +47,98 @@ class ApiService {
     return headers;
   }
 
+  // Sanitize response body for logging (removes sensitive data like tokens)
+  String _sanitizeResponseBody(String body) {
+    try {
+      final decoded = json.decode(body) as Map<String, dynamic>;
+      final sanitized = Map<String, dynamic>.from(decoded);
+      
+      // Remove token from data if present
+      if (sanitized['data'] is Map) {
+        final data = Map<String, dynamic>.from(sanitized['data'] as Map);
+        if (data.containsKey('token')) {
+          data['token'] = '***REDACTED***';
+        }
+        sanitized['data'] = data;
+      }
+      
+      // Remove token at root level if present
+      if (sanitized.containsKey('token')) {
+        sanitized['token'] = '***REDACTED***';
+      }
+      
+      return json.encode(sanitized);
+    } catch (e) {
+      // If parsing fails, use comprehensive regex patterns to redact tokens
+      // This handles various formats: quoted/unquoted keys, single/double quotes, etc.
+      String sanitized = body;
+      
+      // Pattern 1: Double-quoted key with double-quoted value: "token": "value"
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r'"token"\s*:\s*"[^"]*"', caseSensitive: false),
+        (match) => '"token": "***REDACTED***"',
+      );
+      
+      // Pattern 2: Single-quoted key with single-quoted value: 'token': 'value'
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r"'token'\s*:\s*'[^']*'", caseSensitive: false),
+        (match) => "'token': '***REDACTED***'",
+      );
+      
+      // Pattern 3: Unquoted key with double-quoted value: token: "value"
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r'token\s*:\s*"[^"]*"', caseSensitive: false),
+        (match) => 'token: "***REDACTED***"',
+      );
+      
+      // Pattern 4: Unquoted key with single-quoted value: token: 'value'
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r"token\s*:\s*'[^']*'", caseSensitive: false),
+        (match) => "token: '***REDACTED***'",
+      );
+      
+      // Pattern 5: Unquoted key with unquoted value (common in some formats): token: value
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r'token\s*:\s*([a-zA-Z0-9_\-\.]+)', caseSensitive: false),
+        (match) => 'token: ***REDACTED***',
+      );
+      
+      // Pattern 6: Token in URL-encoded format: token=value
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r'token\s*=\s*[^&\s]+', caseSensitive: false),
+        (match) => 'token=***REDACTED***',
+      );
+      
+      // Pattern 7: Token in header format: Authorization: Bearer token_value
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r'(Bearer|Token|Authorization)\s*:\s*[^\s,;\)]+', caseSensitive: false),
+        (match) => '${match.group(1)}: ***REDACTED***',
+      );
+      
+      // Pattern 8: JWT-like tokens (three base64 parts separated by dots): "xxx.yyy.zzz"
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r'"[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+"'),
+        (match) => '"***REDACTED***"',
+      );
+      
+      // Pattern 9: Long alphanumeric strings that might be tokens (40+ chars, in quotes)
+      // Only match if it's a very long string that looks like a token
+      sanitized = sanitized.replaceAllMapped(
+        RegExp(r'"[A-Za-z0-9\-_]{40,}"'),
+        (match) {
+          final value = match.group(0) ?? '';
+          // Additional check: if it contains only alphanumeric and common token chars
+          if (RegExp(r'^"[A-Za-z0-9\-_]+"$').hasMatch(value)) {
+            return '"***REDACTED***"';
+          }
+          return value;
+        },
+      );
+      
+      return sanitized;
+    }
+  }
+
   // Handle API response
   Map<String, dynamic> _handleResponse(http.Response response) {
     final body = json.decode(response.body);
@@ -80,7 +172,8 @@ class ApiService {
       );
 
       debugPrint('📡 Response status: ${response.statusCode}');
-      debugPrint('📡 Response body: ${response.body}');
+      // Sanitize response body to prevent token exposure in logs
+      debugPrint('📡 Response body: ${_sanitizeResponseBody(response.body)}');
 
       final data = _handleResponse(response);
       
